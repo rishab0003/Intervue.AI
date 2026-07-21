@@ -58,8 +58,8 @@ function AppRoutes() {
     <div className="min-h-screen bg-bg-base flex flex-col justify-between">
       {initialLoad && <LiquidLoader onComplete={() => setInitialLoad(false)} />}
       
-      {/* Sticky capsule Navbar rendered only for logged-in users */}
-      {location.pathname !== '/interview' && <Navbar />}
+      {/* Sticky capsule Navbar rendered for logged-in users */}
+      <Navbar />
 
       <div className="flex-1 flex flex-col w-full">
         <Routes>

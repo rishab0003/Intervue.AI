@@ -393,6 +393,7 @@ export const Interview = () => {
   const handleBegin = async () => {
     // Stop Lobby device streams
     stopStreams();
+    window.dispatchEvent(new CustomEvent('interviewStateChange', { detail: { isLive: true } }));
 
     // Enter Fullscreen Mode
     try {
@@ -412,6 +413,7 @@ export const Interview = () => {
 
       if (startRes.error || !startRes.data) {
         showToast(startRes.error || "Failed to start mock session", "error");
+        window.dispatchEvent(new CustomEvent('interviewStateChange', { detail: { isLive: false } }));
         setPhase('lobby');
         startLobbyStreams();
         return;
@@ -643,6 +645,7 @@ export const Interview = () => {
     stopTimer();
     stopStreams();
     stopProctoring();
+    window.dispatchEvent(new CustomEvent('interviewStateChange', { detail: { isLive: false } }));
     
     // Exit Fullscreen Mode
     try {
