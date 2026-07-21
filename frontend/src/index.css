@@ -1,0 +1,243 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-bg-base: #F8FAFC;
+  --color-accent: #6366F1;
+  --color-accent-soft: #EEF2FF;
+  --color-accent-dark: #4F46E5;
+  --color-success: #10B981;
+  --color-focus-area: #F59E0B;
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94A3B8;
+
+  /* Card / Surface system */
+  --color-surface: #FFFFFF;
+  --color-surface-border: rgba(0,0,0,0.06);
+  --color-surface-raised: #F8FAFC;
+  --color-surface-raised-border: rgba(0,0,0,0.05);
+
+  /* Landing Page Specific Colors */
+  --color-landing-base: #FAFAF7;
+  --color-landing-sec: #F3F2ED;
+  --color-landing-accent: #6366F1;
+  --color-landing-text: #0F172A;
+  --color-landing-body: #475569;
+
+  /* SaaS Dashboard Specific Colors */
+  --color-dashboard-bg: #F8FAFC;
+  --color-dashboard-lime: #6366F1;
+  --color-dashboard-dark: #0F172A;
+
+  /* SVG/Chart adaptive colors */
+  --color-chart-grid: rgba(15,23,42,0.08);
+  --color-chart-dot: #0F172A;
+
+  /* Native Device Font Stack */
+  --font-heading: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-body: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-bold-display: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-serif: "Instrument Serif", serif;
+
+  --radius-3xl: 24px;
+  --radius-2xl: 16px;
+}
+
+/* Dynamic Dark Mode Colors Overwrite */
+.dark {
+  --color-bg-base: #0B0F19;
+  --color-accent: #818CF8;
+  --color-accent-soft: #1E1B4B;
+  --color-accent-dark: #6366F1;
+  --color-success: #34D399;
+  --color-focus-area: #FBBF24;
+  --color-text-primary: #F1F5F9;
+  --color-text-secondary: #94A3B8;
+  --color-text-muted: #64748B;
+
+  /* Card / Surface system — dark mode */
+  --color-surface: #151D2E;
+  --color-surface-border: rgba(255,255,255,0.07);
+  --color-surface-raised: #1A2338;
+  --color-surface-raised-border: rgba(255,255,255,0.05);
+
+  /* Landing Page Specific Colors */
+  --color-landing-base: #0B0F19;
+  --color-landing-sec: #131A26;
+  --color-landing-accent: #818CF8;
+  --color-landing-text: #F1F5F9;
+  --color-landing-body: #94A3B8;
+
+  /* SaaS Dashboard Specific Colors */
+  --color-dashboard-bg: #0B0F19;
+  --color-dashboard-lime: #8188F8;
+  --color-dashboard-dark: #F1F5F9;
+
+  /* SVG/Chart adaptive colors */
+  --color-chart-grid: rgba(255,255,255,0.08);
+  --color-chart-dot: #F1F5F9;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  background: radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
+              radial-gradient(at 100% 0%, rgba(236, 72, 153, 0.06) 0px, transparent 50%),
+              radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.06) 0px, transparent 50%),
+              radial-gradient(at 0% 100%, rgba(244, 63, 94, 0.06) 0px, transparent 50%);
+  background-color: var(--color-bg-base);
+  background-attachment: fixed;
+  color: var(--color-text-primary);
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.dark body,
+.dark {
+  background: radial-gradient(at 0% 0%, rgba(129, 140, 248, 0.12) 0px, transparent 50%),
+              radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.07) 0px, transparent 50%),
+              radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.05) 0px, transparent 50%),
+              radial-gradient(at 0% 100%, rgba(99, 102, 241, 0.06) 0px, transparent 50%);
+  background-color: var(--color-bg-base);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
+}
+
+/* ─── Semantic Surface Utilities ──────────────────────────────────────── */
+
+/* White card surface that adapts to dark mode */
+.surface {
+  background-color: var(--color-surface);
+  border-color: var(--color-surface-border);
+}
+
+/* Raised inner panel (slightly lighter) */
+.surface-raised {
+  background-color: var(--color-surface-raised);
+  border-color: var(--color-surface-raised-border);
+}
+
+/* ─── Form input styles ──────────────────────────────────────────────── */
+.form-input {
+  background-color: var(--color-bg-base);
+  border-color: var(--color-surface-border);
+  color: var(--color-text-primary);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.form-input:focus {
+  border-color: var(--color-accent);
+  outline: none;
+}
+
+/* ─── Toggle switch helper ────────────────────────────────────────────── */
+.toggle-track {
+  background-color: #D1D5DB; /* gray-300 */
+}
+
+.dark .toggle-track {
+  background-color: #374151; /* gray-700 */
+}
+
+/* ─── Badge helpers ────────────────────────────────────────────────────── */
+.badge-success {
+  background-color: rgba(16, 185, 129, 0.12);
+  color: var(--color-success);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.badge-pending {
+  background-color: var(--color-surface-raised);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-surface-border);
+}
+
+.badge-warning {
+  background-color: rgba(245, 158, 11, 0.12);
+  color: var(--color-focus-area);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+/* ─── Alert box helpers ───────────────────────────────────────────────── */
+.alert-warning {
+  background-color: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: var(--color-focus-area);
+}
+
+/* ─── Divider ─────────────────────────────────────────────────────────── */
+.divider {
+  background-color: var(--color-surface-border);
+}
+
+/* Custom dot pattern helper specifically for light mode Campus Fresh */
+.bg-grid-dots {
+  background-image: radial-gradient(rgba(99, 102, 241, 0.12) 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
+}
+
+.text-stroke-headline {
+  -webkit-text-stroke: 2px #0F172A;
+  color: transparent;
+}
+
+.dark .text-stroke-headline {
+  -webkit-text-stroke: 2px #F1F5F9;
+}
+
+/* Ticker marquee animation */
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 35s linear infinite;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+/* Marching Ants / Moving Chain animation for SVGs */
+.animate-marching-ants {
+  animation: marching-ants 1s linear infinite;
+}
+
+@keyframes marching-ants {
+  to {
+    stroke-dashoffset: -16;
+  }
+}
+
+/* Lenis smooth scrolling rules */
+html.lenis, html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}
+

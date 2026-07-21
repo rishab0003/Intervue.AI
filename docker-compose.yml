@@ -1,0 +1,47 @@
+# ────────────────────────────────────────────────────────────────
+#  docker-compose.yml — AI Voice Interview System
+#  Full-stack deployment: frontend (Nginx) + backend (Node)
+# ────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Backend API ──────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: intervue-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      - NODE_ENV=production
+      - PORT=5055
+      - FRONTEND_URL=http://localhost
+    volumes:
+      # Persist the SQLite database and uploads across restarts
+      - backend-data:/app/uploads
+      - ./backend/interview.db:/app/interview.db
+    ports:
+      - "5055:5055"     # Optional: expose for direct API access during debug
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5055/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Frontend (Vite build → Nginx) ────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: intervue-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  backend-data:

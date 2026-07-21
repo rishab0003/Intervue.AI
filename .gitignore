@@ -1,0 +1,12 @@
+node_modules/
+.env
+uploads/
+*.log
+__pycache__/
+frontend/certs/
+*.pem
+*.sqlite
+*.db
+*.db-*
+data/
+
