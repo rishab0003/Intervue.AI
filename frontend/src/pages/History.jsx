@@ -289,7 +289,9 @@ export const History = () => {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 220 }}
-              className="fixed right-0 top-0 bottom-0 w-full sm:w-[500px] bg-white dark:bg-zinc-950 border-l border-slate-200 dark:border-zinc-800/80 z-[1000] shadow-2xl flex flex-col"
+              data-lenis-prevent
+              data-lenis-prevent-wheel
+              className="fixed right-0 top-0 bottom-0 w-full sm:w-[500px] bg-white dark:bg-zinc-950 border-l border-slate-200 dark:border-zinc-800/80 z-[1000] shadow-2xl flex flex-col overscroll-contain"
             >
               {/* Drawer Header */}
               <div className="p-6 border-b border-slate-100 dark:border-zinc-900 flex justify-between items-center bg-slate-50/50 dark:bg-zinc-900/10">
@@ -324,7 +326,11 @@ export const History = () => {
               </div>
 
               {/* Drawer Body */}
-              <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+              <div
+                data-lenis-prevent
+                data-lenis-prevent-wheel
+                className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 overscroll-contain touch-pan-y"
+              >
                 {isActiveLoading ? (
                   <div className="flex-1 flex flex-col items-center justify-center gap-3 min-h-[300px]">
                     <div className="w-8 h-8 border-4 border-indigo-600/20 border-t-indigo-600 rounded-full animate-spin"></div>
