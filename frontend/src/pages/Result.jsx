@@ -115,6 +115,16 @@ export const Result = () => {
   const strengths = result?.answers?.filter((a) => a.score >= 7.5) || [];
   const focusAreas = result?.answers?.filter((a) => a.score < 7.5) || [];
 
+  // Compute speech analytics dynamically with fallbacks
+  const answersWithWpm = result?.answers?.filter(a => a.wpm > 0) || [];
+  const computedAvgWpm = (result?.interview?.avg_wpm && result.interview.avg_wpm > 0)
+    ? Math.round(result.interview.avg_wpm)
+    : (answersWithWpm.length > 0 ? Math.round(answersWithWpm.reduce((sum, a) => sum + a.wpm, 0) / answersWithWpm.length) : 0);
+
+  const computedTotalFiller = (result?.interview?.total_filler !== undefined && result?.interview?.total_filler !== null)
+    ? result.interview.total_filler
+    : (result?.answers?.reduce((sum, a) => sum + (a.filler_count || 0), 0) || 0);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -138,22 +148,24 @@ export const Result = () => {
             <p className="text-xs text-text-secondary mt-1 max-w-md leading-relaxed">
               We've compiled your verbal analytics, gaze tracking metrics, and study playlists below.
             </p>
-            <div className="flex flex-wrap gap-2 mt-3.5">
-              <a
-                href={`/api/interview/${interviewId}/report`}
-                target="_blank"
-                rel="noreferrer"
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl px-4 py-2 text-xs flex items-center gap-1.5 transition-all shadow-sm w-fit"
-              >
-                <span>Download PDF Report</span>
-              </a>
-            </div>
           </div>
         </div>
 
-        <div className="bg-accent-soft/30 border border-accent/15 px-6 py-4 rounded-3xl text-center flex-shrink-0 min-w-[120px]">
-          <span className="text-[9px] font-extrabold text-accent uppercase tracking-widest block">Overall Score</span>
-          <span className="text-3xl font-extrabold text-text-primary mt-1 block">{overall.toFixed(1)}</span>
+        {/* Right side: Overall Score Card & Download PDF Button */}
+        <div className="flex flex-col sm:flex-row items-center gap-4 shrink-0 w-full sm:w-auto justify-center sm:justify-end">
+          <div className="bg-accent-soft/30 border border-accent/15 px-6 py-3.5 rounded-3xl text-center min-w-[120px]">
+            <span className="text-[9px] font-extrabold text-accent uppercase tracking-widest block">Overall Score</span>
+            <span className="text-3xl font-extrabold text-text-primary mt-0.5 block">{overall.toFixed(1)}</span>
+          </div>
+
+          <a
+            href={`/api/interview/${interviewId}/report`}
+            target="_blank"
+            rel="noreferrer"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-xl px-5 py-3 text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-md shadow-indigo-500/20 hover:scale-[1.02] active:scale-[0.98] cursor-pointer whitespace-nowrap"
+          >
+            <span>Download PDF Report</span>
+          </a>
         </div>
       </Card>
 
@@ -218,24 +230,14 @@ export const Result = () => {
                               { key: 'structure', label: 'Structure', data: subScores.structure },
                               { key: 'content_depth', label: 'Content Depth', data: subScores.content_depth },
                               { key: 'clarity_delivery', label: 'Delivery', data: subScores.clarity_delivery }
-                            ].map((sub, i) => (
-                              sub.data && (
-                                <div key={i} className="bg-slate-50 dark:bg-zinc-800/40 border border-slate-100 dark:border-zinc-800 p-2.5 rounded-xl">
-                                  <div className="flex justify-between items-center mb-1">
-                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{sub.label}</span>
-                                    <span className={`text-[10px] font-black ${sub.data.score >= 7.5 ? 'text-emerald-500' : 'text-amber-500'}`}>
-                                      {sub.data.score}/10
-                                    </span>
-                                  </div>
-                                  <p className="text-[10px] text-slate-600 dark:text-zinc-400 leading-relaxed line-clamp-2" title={sub.data.reason}>
-                                    {sub.data.reason}
-                                  </p>
-                                </div>
-                              )
+                            ].map(sc => sc.data && (
+                              <div key={sc.key} className="flex flex-col gap-1 surface p-2.5 rounded-xl border">
+                                <span className="text-[10px] font-bold text-text-muted">{sc.label}</span>
+                                <span className="text-xs font-black text-text-primary">{sc.data.score}/10</span>
+                                <span className="text-[10px] text-text-secondary leading-snug">{sc.data.feedback}</span>
+                              </div>
                             ));
-                          } catch (e) {
-                            return null;
-                          }
+                          } catch (e) { return null; }
                         })()}
                       </div>
                     )}
@@ -301,7 +303,7 @@ export const Result = () => {
               <div className="flex flex-col gap-1.5 border-t pt-3" style={{ borderColor: 'var(--color-surface-border)' }}>
                 <div className="flex justify-between font-bold">
                   <span>Speech pace average</span>
-                  <strong className="text-text-primary">{result?.interview?.avg_wpm ? `${Math.round(result.interview.avg_wpm)} WPM` : '—'}</strong>
+                  <strong className="text-text-primary">{computedAvgWpm > 0 ? `${computedAvgWpm} WPM` : '—'}</strong>
                 </div>
                 <span className="text-[10px] text-text-muted leading-relaxed">
                   Optimal pacing is between 120-160 Words Per Minute.
@@ -312,10 +314,10 @@ export const Result = () => {
               <div className="flex flex-col gap-1.5 border-t pt-3" style={{ borderColor: 'var(--color-surface-border)' }}>
                 <div className="flex justify-between font-bold">
                   <span>Filler words spoken</span>
-                  <strong className="text-text-primary">{result?.interview?.total_filler || 0} times</strong>
+                  <strong className="text-text-primary">{computedTotalFiller} times</strong>
                 </div>
                 <span className="text-[10px] text-text-muted leading-relaxed">
-                  Monitors occurrences of speech breaks ("um", "like", "uh", "actually").
+                  Monitors occurrences of speech breaks ("um", "like", "uh", "actually", "basically").
                 </span>
               </div>
             </div>

@@ -9,6 +9,8 @@ const interviewSchema = new mongoose.Schema({
   total_questions:       { type: Number, default: 0 },
   attention_score:       { type: Number, default: 100 },
   look_away_count:       { type: Number, default: 0 },
+  avg_wpm:               { type: Number, default: 0 },
+  total_filler:          { type: Number, default: 0 },
   recommendations_json:  { type: String, default: null },
   finished_at:           { type: Date, default: null },
 }, { timestamps: { createdAt: "created_at", updatedAt: false } });

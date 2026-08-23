@@ -628,17 +628,8 @@ Based on their answer (which scored a mediocre ${score}/10), ask exactly one bri
               const { callGroqAPI } = require("../utils/groq");
               const followUpText = await callGroqAPI(followUpPrompt, "You are a professional mock interviewer asking a follow-up question.", false);
               if (followUpText) {
-                followUpQuestion = {
-                  category: "Follow-up",
-                  text: followUpText.trim()
-                };
-              }
-            } catch (errGroq) {
-              console.error("Groq follow-up generation failed:", errGroq);
-            }
-          }
-        }
-      }
+    if (score < 6) {
+      followUpQuestion = await generateFollowUpQuestion(question_text, answer_text, category);
     }
 
     res.json({ score, feedback, sub_scores, filler_count: fillerCount, wpm, message: "Answer saved", follow_up: followUpQuestion });
@@ -668,6 +659,12 @@ exports.finishInterview = async (req, res) => {
 
     const overallScore = Math.round(avgScore * 10) / 10;
 
+    const validWpmAnswers = answers.filter(a => a.wpm > 0);
+    const avgWpm = validWpmAnswers.length > 0
+      ? Math.round(validWpmAnswers.reduce((sum, a) => sum + a.wpm, 0) / validWpmAnswers.length)
+      : 0;
+    const totalFiller = answers.reduce((sum, a) => sum + (a.filler_count || 0), 0);
+
     const categoryScores = {};
     answers.forEach(a => {
       if (!categoryScores[a.category]) categoryScores[a.category] = { total: 0, count: 0 };
@@ -686,6 +683,8 @@ exports.finishInterview = async (req, res) => {
     const updateObj = {
       status: 'completed',
       overall_score: overallScore,
+      avg_wpm: avgWpm,
+      total_filler: totalFiller,
       recommendations_json: recommendationsJson,
       finished_at: new Date()
     };
@@ -697,6 +696,8 @@ exports.finishInterview = async (req, res) => {
     res.json({
       interview_id,
       overall_score: overallScore,
+      avg_wpm: avgWpm,
+      total_filler: totalFiller,
       total_answers: totalAnswers,
       breakdown,
       recommendations,
@@ -733,6 +734,19 @@ exports.getResults = async (req, res) => {
 
     const answers = await InterviewAnswer.find({ interview_id }).sort({ question_index: 1 });
 
+    const interviewObj = interview.toObject();
+
+    const validWpmAnswers = answers.filter(a => a.wpm > 0);
+    const calculatedAvgWpm = validWpmAnswers.length > 0
+      ? Math.round(validWpmAnswers.reduce((sum, a) => sum + a.wpm, 0) / validWpmAnswers.length)
+      : 0;
+    const calculatedTotalFiller = answers.reduce((sum, a) => sum + (a.filler_count || 0), 0);
+
+    interviewObj.avg_wpm = interviewObj.avg_wpm || calculatedAvgWpm;
+    interviewObj.total_filler = (interviewObj.total_filler !== undefined && interviewObj.total_filler !== null)
+      ? interviewObj.total_filler
+      : calculatedTotalFiller;
+
     let recommendations = [];
     if (interview.recommendations_json) {
       try {
@@ -740,7 +754,7 @@ exports.getResults = async (req, res) => {
       } catch (e) {}
     }
 
-    res.json({ interview, answers, recommendations });
+    res.json({ interview: interviewObj, answers, recommendations });
   } catch (err) {
     console.error("Get results error:", err);
     res.status(500).json({ message: "Failed to fetch results" });
