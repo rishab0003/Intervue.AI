@@ -8,7 +8,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles, ExternalLink, CheckCircle2, ArrowRight,
   GraduationCap, ChevronDown, ChevronUp, Send, RotateCcw,
-  Zap, Target, Map, Bot, Play, Globe, GitBranch, FileText
+  Zap, Target, Map, Bot, Play, Globe, GitBranch, FileText,
+  Code2, Database, Server, Cpu, RotateCw, Lightbulb, Check
 } from 'lucide-react';
 
 /* ─────────────────────────────────────────
@@ -18,7 +19,7 @@ const CAREER_TRACKS = [
   {
     id: 'frontend',
     title: 'Frontend Engineer Track',
-    emoji: '⚛️',
+    icon: <Code2 className="w-6 h-6 text-blue-500" />,
     description: 'Master React mechanics, state management, client-side performance, and modern browser APIs to ace frontend interviews.',
     accentClass: 'border-l-blue-500',
     badgeClass: 'bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/30',
@@ -35,7 +36,7 @@ const CAREER_TRACKS = [
   {
     id: 'backend',
     title: 'Backend & DB Architect Track',
-    emoji: '💾',
+    icon: <Database className="w-6 h-6 text-emerald-500" />,
     description: 'Master API design, database schemas, query optimisation, caching layers, and server-side security for technical rounds.',
     accentClass: 'border-l-emerald-500',
     badgeClass: 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/30',
@@ -52,7 +53,7 @@ const CAREER_TRACKS = [
   {
     id: 'system',
     title: 'System Design & DevOps Track',
-    emoji: '☁️',
+    icon: <Server className="w-6 h-6 text-amber-500" />,
     description: 'Understand distributed architectures, cloud caching, containers, load balancers, and CI/CD pipelines for senior rounds.',
     accentClass: 'border-l-amber-500',
     badgeClass: 'bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/30',
@@ -69,7 +70,7 @@ const CAREER_TRACKS = [
   {
     id: 'dsa',
     title: 'DSA & Problem Solving Track',
-    emoji: '🧩',
+    icon: <Cpu className="w-6 h-6 text-purple-500" />,
     description: 'Build pattern recognition for LeetCode problems — arrays, trees, graphs, dynamic programming, and complexity analysis.',
     accentClass: 'border-l-purple-500',
     badgeClass: 'bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800/30',
@@ -135,7 +136,9 @@ function TrackCard({ track, completedLinks, onToggle }) {
         className="w-full flex items-center gap-4 p-5 text-left cursor-pointer group"
         aria-expanded={open}
       >
-        <span className="text-2xl flex-shrink-0">{track.emoji}</span>
+        <div className="flex-shrink-0 p-2.5 rounded-2xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/60 dark:border-white/5">
+          {track.icon}
+        </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-sm font-black text-dashboard-dark dark:text-white uppercase tracking-tight">

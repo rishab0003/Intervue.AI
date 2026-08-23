@@ -353,7 +353,7 @@ export const Result = () => {
                         onClick={() => setOpenModelAnswers(prev => ({ ...prev, [idx]: !prev[idx] }))}
                         className="text-xs font-bold text-blue-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer select-none outline-none"
                       >
-                        <span>{openModelAnswers[idx] ? '📖 Hide Model Answer' : '📖 View Model Answer & Comparison'}</span>
+                        <span className="flex items-center gap-1.5"><HelpCircle size={13} /> {openModelAnswers[idx] ? 'Hide Model Answer' : 'View Model Answer & Comparison'}</span>
                       </button>
                       
                       {openModelAnswers[idx] && (
