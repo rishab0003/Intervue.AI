@@ -68,6 +68,13 @@ export const Interview = () => {
   const utteranceRef = useRef(null);
   const timerIntervalRef = useRef(null);
   const speakingStartTimeRef = useRef(null); // Tracks the start time of the speech round for WPM calculation
+  const accumulatedTranscriptRef = useRef('');
+  const isListeningRef = useRef(false);
+  const transcriptRef = useRef('');
+
+  useEffect(() => {
+    transcriptRef.current = transcript;
+  }, [transcript]);
 
   // Proctoring Metrics
   const [isFaceMeshLoaded, setIsFaceMeshLoaded] = useState(false);
@@ -575,6 +582,9 @@ export const Interview = () => {
     speakingStartTimeRef.current = Date.now();
     setOrbState('listening');
     audioChunksRef.current = [];
+    accumulatedTranscriptRef.current = '';
+    setTranscript('');
+    isListeningRef.current = true;
 
     try {
       const recStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -598,30 +608,39 @@ export const Interview = () => {
         recognition.lang = 'en-US';
 
         recognition.onresult = (e) => {
-          let finalTranscript = '';
-          let interimTranscript = '';
+          let currentSessionFinal = '';
+          let currentSessionInterim = '';
+
           for (let i = 0; i < e.results.length; ++i) {
             if (e.results[i].isFinal) {
-              finalTranscript += e.results[i][0].transcript;
+              currentSessionFinal += e.results[i][0].transcript + ' ';
             } else {
-              interimTranscript += e.results[i][0].transcript;
+              currentSessionInterim += e.results[i][0].transcript;
             }
           }
-          setTranscript(finalTranscript + interimTranscript);
+
+          const fullText = (accumulatedTranscriptRef.current + ' ' + currentSessionFinal + ' ' + currentSessionInterim).replace(/\s+/g, ' ').trim();
+          setTranscript(fullText);
         };
 
         recognition.onend = () => {
-          if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-            try {
-              recognition.start();
-            } catch (err) {
-              console.warn("Failed to restart speech recognition onend:", err);
-            }
+          if (isListeningRef.current) {
+            // Save currently accumulated transcript before starting a new recognition session
+            accumulatedTranscriptRef.current = transcriptRef.current;
+            setTimeout(() => {
+              if (isListeningRef.current) {
+                try {
+                  recognition.start();
+                } catch (err) {
+                  console.warn("Failed to restart speech recognition onend:", err);
+                }
+              }
+            }, 150);
           }
         };
 
         recognition.onerror = (e) => {
-          console.error("Speech recognition error:", e.error);
+          console.warn("Speech recognition notice/error:", e.error);
         };
 
         recognition.start();
@@ -633,17 +652,21 @@ export const Interview = () => {
   };
 
   const stopRecordingAndTranscribing = () => {
+    isListeningRef.current = false;
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }
     if (recognitionRef.current) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch (err) {}
     }
   };
 
   // Try answer again reset
   const handleTryAgain = () => {
     stopRecordingAndTranscribing();
+    accumulatedTranscriptRef.current = '';
     setTranscript('');
     setTimeout(() => {
       startRecording();
@@ -1023,20 +1046,34 @@ export const Interview = () => {
                   <VoiceOrb state={orbState} />
                 </div>
 
-                {/* Live Transcript */}
-                <div className="surface border rounded-3xl p-6 flex flex-col gap-3 min-h-[120px] text-left">
+                {/* Live Transcript Panel with Edit Capability & Word Count */}
+                <div className="surface border rounded-3xl p-6 flex flex-col gap-3 min-h-[140px] text-left">
                   <div className="flex justify-between items-center border-b pb-3" style={{ borderColor: 'var(--color-surface-border)' }}>
-                    <span className="text-[11px] font-extrabold text-text-muted uppercase tracking-wider">Your Response</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-extrabold text-text-muted uppercase tracking-wider">Your Response</span>
+                      <span className="text-[10px] text-slate-400 dark:text-white/30 font-medium">
+                        ({transcript.trim() ? transcript.trim().split(/\s+/).filter(Boolean).length : 0} words)
+                      </span>
+                    </div>
                     {orbState === 'listening' && (
-                      <span className="flex h-2 w-2 relative">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
+                      <span className="flex items-center gap-1.5 text-[10px] font-extrabold text-success uppercase">
+                        <span className="flex h-2 w-2 relative">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
+                        </span>
+                        Listening...
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-text-secondary leading-loose font-medium italic">
-                    {transcript || (orbState === 'speaking' ? 'Interviewer is speaking...' : orbState === 'thinking' ? 'Processing your answer...' : 'Speak your answer...')}
-                  </p>
+                  <textarea
+                    value={transcript}
+                    onChange={(e) => {
+                      setTranscript(e.target.value);
+                      accumulatedTranscriptRef.current = e.target.value;
+                    }}
+                    placeholder={orbState === 'speaking' ? 'Interviewer is speaking...' : orbState === 'thinking' ? 'Processing answer...' : 'Speak your answer (or type manually)...'}
+                    className="w-full bg-transparent border-0 text-sm text-text-primary focus:outline-none resize-none leading-relaxed font-medium italic min-h-[80px]"
+                  />
                 </div>
 
                 {/* Controls */}
@@ -1090,20 +1127,34 @@ export const Interview = () => {
                   <VoiceOrb state={orbState} />
                 </div>
 
-                {/* Transcript preview panel */}
+                {/* Transcript preview panel with textarea */}
                 <div className="surface border rounded-[32px] p-8 flex flex-col gap-4 min-h-[200px] text-left">
                   <div className="flex justify-between items-center border-b pb-3.5" style={{ borderColor: 'var(--color-surface-border)' }}>
-                    <span className="text-[11px] font-extrabold text-text-muted uppercase tracking-wider">Live Transcript</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-extrabold text-text-muted uppercase tracking-wider">Live Transcript</span>
+                      <span className="text-[10px] text-slate-400 dark:text-white/30 font-medium">
+                        ({transcript.trim() ? transcript.trim().split(/\s+/).filter(Boolean).length : 0} words)
+                      </span>
+                    </div>
                     {orbState === 'listening' && (
-                      <span className="flex h-2 w-2 relative">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
+                      <span className="flex items-center gap-1.5 text-[10px] font-extrabold text-success uppercase">
+                        <span className="flex h-2 w-2 relative">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
+                        </span>
+                        Listening...
                       </span>
                     )}
                   </div>
-                  <p className="text-sm sm:text-base text-text-secondary leading-loose font-medium italic">
-                    {transcript || 'Start speaking to record response...'}
-                  </p>
+                  <textarea
+                    value={transcript}
+                    onChange={(e) => {
+                      setTranscript(e.target.value);
+                      accumulatedTranscriptRef.current = e.target.value;
+                    }}
+                    placeholder={orbState === 'speaking' ? 'Interviewer is speaking...' : orbState === 'thinking' ? 'Processing answer...' : 'Start speaking to record response (or type manually)...'}
+                    className="w-full bg-transparent border-0 text-sm sm:text-base text-text-primary focus:outline-none resize-none leading-loose font-medium italic min-h-[120px]"
+                  />
                 </div>
 
                 {/* Hint Box (if triggered) */}
