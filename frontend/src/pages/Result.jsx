@@ -266,200 +266,202 @@ export const Result = () => {
         </div>
       </Card>
 
-      {/* 5-Axis Competency Radar Card */}
-      <Card className="p-6 flex flex-col sm:flex-row items-center justify-between gap-6 bg-white dark:bg-zinc-900/80 border border-slate-200/80 dark:border-white/10 rounded-3xl shadow-xs">
-        <div className="flex flex-col gap-2 max-w-md text-left">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-extrabold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-0.5 rounded-full">
+      {/* 2-Column Compact Metrics & Competency Division */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 w-full">
+        {/* Left 7 Cols: 5-Axis Competency Skill Breakdown */}
+        <Card className="lg:col-span-7 p-4 sm:p-5 bg-white dark:bg-zinc-900/80 border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex flex-col gap-1.5 max-w-xs text-left">
+            <span className="text-[9px] font-extrabold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-0.5 rounded-full w-fit">
               Competency Map
             </span>
+            <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">5-Axis Skill Breakdown</h3>
+            <p className="text-[11px] text-slate-500 dark:text-white/50 leading-relaxed">
+              Technical depth, problem-solving, speech pacing, STAR framework & system design logic.
+            </p>
           </div>
-          <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">5-Axis Skill Breakdown</h3>
-          <p className="text-xs text-slate-500 dark:text-white/50 leading-relaxed">
-            Evaluates your balance across technical depth, problem-solving, speech pacing, STAR methodology, and system design logic.
-          </p>
+
+          {/* SVG Radar */}
+          <div className="relative shrink-0 mx-auto sm:mx-0">
+            <svg width="160" height="160" viewBox="0 0 200 200" className="overflow-visible">
+              {/* Radar Background Polygons */}
+              {[0.25, 0.5, 0.75, 1].map((scale, levelIdx) => {
+                const pts = [0, 1, 2, 3, 4].map(i => {
+                  const angle = (Math.PI * 2 / 5) * i - Math.PI / 2;
+                  const r = scale * 65;
+                  return `${100 + r * Math.cos(angle)},${100 + r * Math.sin(angle)}`;
+                }).join(' ');
+                return <polygon key={levelIdx} points={pts} fill="none" stroke="currentColor" strokeWidth="1" className="text-slate-200 dark:text-zinc-800" />;
+              })}
+              {/* Axis Lines */}
+              {[0, 1, 2, 3, 4].map(i => {
+                const angle = (Math.PI * 2 / 5) * i - Math.PI / 2;
+                return <line key={i} x1="100" y1="100" x2={100 + 65 * Math.cos(angle)} y2={100 + 65 * Math.sin(angle)} stroke="currentColor" strokeWidth="1" className="text-slate-200 dark:text-zinc-800" />;
+              })}
+              {/* Radar Filled Polygon */}
+              {(() => {
+                const axes = [compScores.technical, compScores.problem, compScores.pacing, compScores.star, compScores.architecture];
+                const pts = axes.map((val, i) => {
+                  const angle = (Math.PI * 2 / 5) * i - Math.PI / 2;
+                  const r = (val / 100) * 65;
+                  return `${100 + r * Math.cos(angle)},${100 + r * Math.sin(angle)}`;
+                }).join(' ');
+                return <polygon points={pts} fill="rgba(2, 132, 199, 0.25)" stroke="#0284C7" strokeWidth="2.5" />;
+              })()}
+              {/* Axis Labels */}
+              {['Tech', 'Problem', 'Pacing', 'STAR', 'Arch'].map((label, i) => {
+                const angle = (Math.PI * 2 / 5) * i - Math.PI / 2;
+                const x = 100 + 82 * Math.cos(angle);
+                const y = 100 + 82 * Math.sin(angle);
+                return (
+                  <text key={i} x={x} y={y} textAnchor="middle" dominantBaseline="middle" className="text-[10px] font-black fill-slate-600 dark:fill-zinc-300 uppercase">
+                    {label}
+                  </text>
+                );
+              })}
+            </svg>
+          </div>
+        </Card>
+
+        {/* Right 5 Cols: Mock Analytics */}
+        <Card className="lg:col-span-5 p-4 sm:p-5 bg-white dark:bg-zinc-900/80 border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-xs flex flex-col justify-between gap-3 text-left">
+          <div className="flex items-center justify-between">
+            <h4 className="font-extrabold text-xs text-slate-900 dark:text-white uppercase tracking-wider">Mock Analytics</h4>
+            <span className="text-[9px] font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded-md">
+              Verbal & Vision
+            </span>
+          </div>
+
+          {/* Attention Score progress */}
+          <div className="flex flex-col gap-1">
+            <div className="flex justify-between font-extrabold text-[11px]">
+              <span className="text-slate-600 dark:text-zinc-400">Camera Focus (Attention)</span>
+              <strong className="text-slate-900 dark:text-white">{result?.interview?.attention_score || 100}%</strong>
+            </div>
+            <ProgressBar value={result?.interview?.attention_score || 100} color={getScoreColor(result?.interview?.attention_score || 100)} />
+          </div>
+
+          {/* Speech Pace & Filler words grid */}
+          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100 dark:border-zinc-800">
+            <div className="flex flex-col gap-0.5 bg-slate-50 dark:bg-zinc-950/60 p-2 rounded-xl border border-slate-200/40 dark:border-white/5">
+              <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 uppercase">Speech Pace</span>
+              <strong className="text-xs font-black text-slate-900 dark:text-white">
+                {computedAvgWpm > 0 ? `${computedAvgWpm} WPM` : '—'}
+              </strong>
+            </div>
+
+            <div className="flex flex-col gap-0.5 bg-slate-50 dark:bg-zinc-950/60 p-2 rounded-xl border border-slate-200/40 dark:border-white/5">
+              <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 uppercase">Filler Words</span>
+              <strong className="text-xs font-black text-slate-900 dark:text-white">
+                {computedTotalFiller} times
+              </strong>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Question-by-Question Breakdown — Full Length Container */}
+      <div className="flex flex-col gap-4 w-full">
+        <div className="flex items-center justify-between">
+          <h3 className="font-extrabold text-base text-slate-900 dark:text-white tracking-tight uppercase">Question-by-Question breakdown</h3>
+          <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">{result?.answers?.length || 0} Questions Evaluated</span>
         </div>
 
-        {/* SVG Radar */}
-        <div className="relative p-2 shrink-0">
-          <svg width="220" height="220" className="overflow-visible">
-            {/* Radar Background Polygons */}
-            {[0.25, 0.5, 0.75, 1].map((scale, levelIdx) => {
-              const pts = [0, 1, 2, 3, 4].map(i => {
-                const angle = (Math.PI * 2 / 5) * i - Math.PI / 2;
-                const r = scale * 75;
-                return `${110 + r * Math.cos(angle)},${110 + r * Math.sin(angle)}`;
-              }).join(' ');
-              return <polygon key={levelIdx} points={pts} fill="none" stroke="currentColor" strokeWidth="1" className="text-slate-200 dark:text-zinc-800" />;
-            })}
-            {/* Axis Lines */}
-            {[0, 1, 2, 3, 4].map(i => {
-              const angle = (Math.PI * 2 / 5) * i - Math.PI / 2;
-              return <line key={i} x1="110" y1="110" x2={110 + 75 * Math.cos(angle)} y2={110 + 75 * Math.sin(angle)} stroke="currentColor" strokeWidth="1" className="text-slate-200 dark:text-zinc-800" />;
-            })}
-            {/* Radar Filled Polygon */}
-            {(() => {
-              const axes = [compScores.technical, compScores.problem, compScores.pacing, compScores.star, compScores.architecture];
-              const pts = axes.map((val, i) => {
-                const angle = (Math.PI * 2 / 5) * i - Math.PI / 2;
-                const r = (val / 100) * 75;
-                return `${110 + r * Math.cos(angle)},${110 + r * Math.sin(angle)}`;
-              }).join(' ');
-              return <polygon points={pts} fill="rgba(2, 132, 199, 0.25)" stroke="#0284C7" strokeWidth="2.5" />;
-            })()}
-            {/* Axis Labels */}
-            {['Tech', 'Problem', 'Pacing', 'STAR', 'Arch'].map((label, i) => {
-              const angle = (Math.PI * 2 / 5) * i - Math.PI / 2;
-              const x = 110 + 92 * Math.cos(angle);
-              const y = 110 + 92 * Math.sin(angle);
-              return (
-                <text key={i} x={x} y={y} textAnchor="middle" dominantBaseline="middle" className="text-[10px] font-black fill-slate-600 dark:fill-zinc-300 uppercase">
-                  {label}
-                </text>
-              );
-            })}
-          </svg>
-        </div>
-      </Card>
+        <div className="flex flex-col gap-5 w-full">
+          {result?.answers?.map((ans, idx) => (
+            <Card key={idx} className="flex flex-col gap-4 p-6 w-full text-left">
+              <div className="flex justify-between items-start gap-4">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-accent bg-accent-soft px-2.5 py-0.5 rounded-full">
+                  {ans.category}
+                </span>
+                <span className={`text-xs font-extrabold px-3 py-1 rounded-full ${
+                  ans.score >= 7.5 ? 'badge-success' : 'badge-warning'
+                }`}>
+                  Score: {ans.score.toFixed(1)}/10
+                </span>
+              </div>
 
-      {/* Main split grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 cols: Answer breakdowns, audio list */}
-        <div className="lg:col-span-2 flex flex-col gap-6">
-          <div className="flex flex-col gap-3">
-            <h3 className="font-bold text-sm text-text-primary tracking-tight">Question-by-Question breakdown</h3>
-            <div className="flex flex-col gap-4">
-              {result?.answers?.map((ans, idx) => (
-                <Card key={idx} className="flex flex-col gap-3 p-5">
-                  <div className="flex justify-between items-start gap-4">
-                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-accent bg-accent-soft px-2 py-0.5 rounded-full">
-                      {ans.category}
-                    </span>
-                    <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-full ${
-                      ans.score >= 7.5 ? 'badge-success' : 'badge-warning'
-                    }`}>
-                      Score: {ans.score.toFixed(1)}/10
-                    </span>
-                  </div>
+              <strong className="text-sm font-extrabold text-text-primary block leading-relaxed">{ans.question_text}</strong>
 
-                  <strong className="text-xs text-text-primary block leading-relaxed">{ans.question_text}</strong>
+              {/* Highlighted answer transcript */}
+              <div className="surface-raised border rounded-2xl p-4 flex flex-col gap-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-[9px] font-bold text-text-muted uppercase">Your response transcript (Annotated)</span>
+                  
+                  {/* Audio playback button */}
+                  {ans.audio_path && (
+                    <button
+                      onClick={() => togglePlayAudio(idx, ans.audio_path)}
+                      className="surface border text-text-secondary hover:text-accent px-3 py-1 rounded-full shadow-sm flex items-center justify-center gap-1.5 text-xs font-bold cursor-pointer transition-colors"
+                      title="Play answer recording"
+                    >
+                      {playingAudio[idx] ? <Pause size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
+                      <span>{playingAudio[idx] ? 'Pause Audio' : 'Play Audio'}</span>
+                    </button>
+                  )}
+                </div>
+                <p className={`text-xs leading-relaxed italic ${
+                  ans.score >= 7.5 ? 'text-text-primary' : 'text-text-secondary'
+                }`}>
+                  "{renderAnnotatedTranscript(ans.answer_text)}"
+                </p>
+              </div>
 
-                  {/* Highlighted answer transcript */}
-                  <div className="surface-raised border rounded-2xl p-4 flex flex-col gap-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[9px] font-bold text-text-muted uppercase">Your response transcript (Annotated)</span>
-                      
-                      {/* Audio playback button */}
-                      {ans.audio_path && (
-                        <button
-                          onClick={() => togglePlayAudio(idx, ans.audio_path)}
-                          className="surface border text-text-secondary hover:text-accent p-1.5 rounded-full shadow-sm flex items-center justify-center cursor-pointer transition-colors"
-                          title="Play answer recording"
-                        >
-                          {playingAudio[idx] ? <Pause size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
-                        </button>
-                      )}
-                    </div>
-                    <p className={`text-xs leading-relaxed italic ${
-                      ans.score >= 7.5 ? 'text-text-primary' : 'text-text-secondary'
-                    }`}>
-                      "{renderAnnotatedTranscript(ans.answer_text)}"
-                    </p>
-                  </div>
-
-                  {/* Feedback summary */}
-                  <div className="text-xs text-text-secondary leading-relaxed surface-raised border p-4 rounded-2xl flex flex-col gap-3">
-                    <div className="flex items-start gap-2">
-                      <span className="text-base leading-none mt-0.5">💡</span>
-                      <p className="font-medium text-slate-700 dark:text-zinc-300 text-[13px]">{ans.feedback || 'Actionable feedback being compiled by AI coach...'}</p>
-                    </div>
-                    
-                    {ans.sub_scores_json && (
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-200/60 dark:border-zinc-700/60 mt-1">
-                        {(() => {
-                          try {
-                            const subScores = JSON.parse(ans.sub_scores_json);
-                            return [
-                              { key: 'structure', label: 'Structure', data: subScores.structure },
-                              { key: 'content_depth', label: 'Content Depth', data: subScores.content_depth },
-                              { key: 'clarity_delivery', label: 'Delivery', data: subScores.clarity_delivery }
-                            ].map(sc => sc.data && (
-                              <div key={sc.key} className="flex flex-col gap-1 surface p-2.5 rounded-xl border">
-                                <span className="text-[10px] font-bold text-text-muted">{sc.label}</span>
-                                <span className="text-xs font-black text-text-primary">{sc.data.score}/10</span>
-                                <span className="text-[10px] text-text-secondary leading-snug">{sc.data.feedback}</span>
-                              </div>
-                            ));
-                          } catch (e) { return null; }
-                        })()}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Model Answer Collapsible */}
-                  {ans.model_answer && (
-                    <div className="mt-1">
-                      <button
-                        type="button"
-                        onClick={() => setOpenModelAnswers(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                        className="text-xs font-bold text-blue-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer select-none outline-none"
-                      >
-                        <span className="flex items-center gap-1.5"><HelpCircle size={13} /> {openModelAnswers[idx] ? 'Hide Model Answer' : 'View Model Answer & Comparison'}</span>
-                      </button>
-                      
-                      {openModelAnswers[idx] && (
-                        <div className="bg-indigo-50/40 dark:bg-indigo-950/10 border border-indigo-150/40 dark:border-indigo-900/30 p-4 rounded-2xl text-xs leading-relaxed mt-2 text-left animate-slide-in">
-                          <div className="flex flex-col gap-2">
-                            <div>
-                              <strong className="text-[10px] uppercase tracking-wider text-indigo-600 dark:text-indigo-400 font-bold block">AI Recommended Ideal Answer:</strong>
-                              <p className="text-slate-700 dark:text-zinc-300 mt-1 font-medium italic">
-                                "{ans.model_answer}"
-                              </p>
-                            </div>
+              {/* Feedback summary */}
+              <div className="text-xs text-text-secondary leading-relaxed surface-raised border p-4 rounded-2xl flex flex-col gap-3">
+                <div className="flex items-start gap-2">
+                  <span className="text-base leading-none mt-0.5">💡</span>
+                  <p className="font-medium text-slate-700 dark:text-zinc-300 text-[13px]">{ans.feedback || 'Actionable feedback being compiled by AI coach...'}</p>
+                </div>
+                
+                {ans.sub_scores_json && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-200/60 dark:border-zinc-700/60 mt-1">
+                    {(() => {
+                      try {
+                        const subScores = JSON.parse(ans.sub_scores_json);
+                        return [
+                          { key: 'structure', label: 'Structure', data: subScores.structure },
+                          { key: 'content_depth', label: 'Content Depth', data: subScores.content_depth },
+                          { key: 'clarity_delivery', label: 'Delivery', data: subScores.clarity_delivery }
+                        ].map(sc => sc.data && (
+                          <div key={sc.key} className="flex flex-col gap-1 surface p-2.5 rounded-xl border">
+                            <span className="text-[10px] font-bold text-text-muted">{sc.label}</span>
+                            <span className="text-xs font-black text-text-primary">{sc.data.score}/10</span>
+                            <span className="text-[10px] text-text-secondary leading-snug">{sc.data.feedback}</span>
                           </div>
+                        ));
+                      } catch (e) { return null; }
+                    })()}
+                  </div>
+                )}
+              </div>
+
+              {/* Model Answer Collapsible */}
+              {ans.model_answer && (
+                <div className="mt-1">
+                  <button
+                    type="button"
+                    onClick={() => setOpenModelAnswers(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                    className="text-xs font-bold text-blue-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer select-none outline-none"
+                  >
+                    <span className="flex items-center gap-1.5"><HelpCircle size={13} /> {openModelAnswers[idx] ? 'Hide Model Answer' : 'View Model Answer & Comparison'}</span>
+                  </button>
+                  
+                  {openModelAnswers[idx] && (
+                    <div className="bg-indigo-50/40 dark:bg-indigo-950/10 border border-indigo-150/40 dark:border-indigo-900/30 p-4 rounded-2xl text-xs leading-relaxed mt-2 text-left animate-slide-in">
+                      <div className="flex flex-col gap-2">
+                        <div>
+                          <strong className="text-[10px] uppercase tracking-wider text-indigo-600 dark:text-indigo-400 font-bold block">AI Recommended Ideal Answer:</strong>
+                          <p className="text-slate-700 dark:text-zinc-300 mt-1 font-medium italic">
+                            "{ans.model_answer}"
+                          </p>
                         </div>
-                      )}
+                      </div>
                     </div>
                   )}
-                </Card>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Right 1 col: Speech and proctoring stats */}
-        <div className="flex flex-col gap-6">
-          {/* Verbal & Attention stats */}
-          <Card className="flex flex-col gap-4">
-            <h3 className="font-extrabold text-sm text-text-primary tracking-tight">Mock Analytics</h3>
-
-            <div className="flex flex-col gap-4 text-xs leading-relaxed text-text-secondary">
-              {/* Attention Score progress */}
-              <div className="flex flex-col gap-1.5">
-                <div className="flex justify-between font-bold">
-                  <span>Camera Focus (Attention)</span>
-                  <strong className="text-text-primary">{result?.interview?.attention_score || 100}%</strong>
                 </div>
-                <ProgressBar value={result?.interview?.attention_score || 100} color={getScoreColor(result?.interview?.attention_score || 100)} />
-              </div>
-
-              {/* Pace & WPM */}
-              <div className="flex flex-col gap-1.5 border-t pt-3" style={{ borderColor: 'var(--color-surface-border)' }}>
-                <div className="flex justify-between font-bold">
-                  <span>Speech pace average</span>
-                  <strong className="text-text-primary">{computedAvgWpm > 0 ? `${computedAvgWpm} WPM` : '—'}</strong>
-                </div>
-              </div>
-
-              {/* Total Filler count */}
-              <div className="flex flex-col gap-1.5 border-t pt-3" style={{ borderColor: 'var(--color-surface-border)' }}>
-                <div className="flex justify-between font-bold">
-                  <span>Filler words spoken</span>
-                  <strong className="text-text-primary">{computedTotalFiller} times</strong>
-                </div>
-              </div>
-            </div>
-          </Card>
+              )}
+            </Card>
+          ))}
         </div>
       </div>
 
