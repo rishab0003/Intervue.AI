@@ -4,31 +4,31 @@
 
 @theme {
   --color-bg-base: #F8FAFC;
-  --color-accent: #6366F1;
-  --color-accent-soft: #EEF2FF;
-  --color-accent-dark: #4F46E5;
-  --color-success: #10B981;
-  --color-focus-area: #F59E0B;
+  --color-accent: #0284C7;
+  --color-accent-soft: #E0F2FE;
+  --color-accent-dark: #0369A1;
+  --color-success: #047857;
+  --color-focus-area: #D97706;
   --color-text-primary: #0F172A;
-  --color-text-secondary: #475569;
-  --color-text-muted: #94A3B8;
+  --color-text-secondary: #334155;
+  --color-text-muted: #64748B;
 
   /* Card / Surface system */
   --color-surface: #FFFFFF;
-  --color-surface-border: rgba(0,0,0,0.06);
+  --color-surface-border: rgba(15, 23, 42, 0.08);
   --color-surface-raised: #F8FAFC;
-  --color-surface-raised-border: rgba(0,0,0,0.05);
+  --color-surface-raised-border: rgba(15, 23, 42, 0.06);
 
   /* Landing Page Specific Colors */
-  --color-landing-base: #FAFAF7;
-  --color-landing-sec: #F3F2ED;
-  --color-landing-accent: #6366F1;
+  --color-landing-base: #F8FAFC;
+  --color-landing-sec: #F1F5F9;
+  --color-landing-accent: #0284C7;
   --color-landing-text: #0F172A;
-  --color-landing-body: #475569;
+  --color-landing-body: #334155;
 
   /* SaaS Dashboard Specific Colors */
   --color-dashboard-bg: #F8FAFC;
-  --color-dashboard-lime: #6366F1;
+  --color-dashboard-lime: #0284C7;
   --color-dashboard-dark: #0F172A;
 
   /* SVG/Chart adaptive colors */
@@ -45,34 +45,34 @@
   --radius-2xl: 16px;
 }
 
-/* Dynamic Dark Mode Colors Overwrite */
+/* Dynamic Dark Mode Colors Overwrite — Option 3 Corporate Ocean */
 .dark {
-  --color-bg-base: #0B0F19;
-  --color-accent: #818CF8;
-  --color-accent-soft: #1E1B4B;
-  --color-accent-dark: #6366F1;
-  --color-success: #34D399;
+  --color-bg-base: #0C1929;
+  --color-accent: #38BDF8;
+  --color-accent-soft: #0F2942;
+  --color-accent-dark: #0284C7;
+  --color-success: #10B981;
   --color-focus-area: #FBBF24;
   --color-text-primary: #F1F5F9;
   --color-text-secondary: #94A3B8;
   --color-text-muted: #64748B;
 
   /* Card / Surface system — dark mode */
-  --color-surface: #151D2E;
-  --color-surface-border: rgba(255,255,255,0.07);
-  --color-surface-raised: #1A2338;
-  --color-surface-raised-border: rgba(255,255,255,0.05);
+  --color-surface: #162A45;
+  --color-surface-border: rgba(255,255,255,0.08);
+  --color-surface-raised: #1C3454;
+  --color-surface-raised-border: rgba(255,255,255,0.06);
 
   /* Landing Page Specific Colors */
-  --color-landing-base: #0B0F19;
-  --color-landing-sec: #131A26;
-  --color-landing-accent: #818CF8;
+  --color-landing-base: #0C1929;
+  --color-landing-sec: #112238;
+  --color-landing-accent: #38BDF8;
   --color-landing-text: #F1F5F9;
   --color-landing-body: #94A3B8;
 
   /* SaaS Dashboard Specific Colors */
-  --color-dashboard-bg: #0B0F19;
-  --color-dashboard-lime: #8188F8;
+  --color-dashboard-bg: #0C1929;
+  --color-dashboard-lime: #38BDF8;
   --color-dashboard-dark: #F1F5F9;
 
   /* SVG/Chart adaptive colors */
@@ -84,10 +84,10 @@ body {
   font-family: var(--font-body);
   font-size: 16px;
   line-height: 1.6;
-  background: radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
-              radial-gradient(at 100% 0%, rgba(236, 72, 153, 0.06) 0px, transparent 50%),
-              radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.06) 0px, transparent 50%),
-              radial-gradient(at 0% 100%, rgba(244, 63, 94, 0.06) 0px, transparent 50%);
+  background: radial-gradient(at 0% 0%, rgba(2, 132, 199, 0.06) 0px, transparent 50%),
+              radial-gradient(at 100% 0%, rgba(3, 105, 161, 0.05) 0px, transparent 50%),
+              radial-gradient(at 100% 100%, rgba(15, 23, 42, 0.04) 0px, transparent 50%),
+              radial-gradient(at 0% 100%, rgba(2, 132, 199, 0.05) 0px, transparent 50%);
   background-color: var(--color-bg-base);
   background-attachment: fixed;
   color: var(--color-text-primary);
@@ -99,10 +99,10 @@ body {
 
 .dark body,
 .dark {
-  background: radial-gradient(at 0% 0%, rgba(129, 140, 248, 0.12) 0px, transparent 50%),
-              radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.07) 0px, transparent 50%),
-              radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.05) 0px, transparent 50%),
-              radial-gradient(at 0% 100%, rgba(99, 102, 241, 0.06) 0px, transparent 50%);
+  background: radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.08) 0px, transparent 50%),
+              radial-gradient(at 100% 0%, rgba(2, 132, 199, 0.06) 0px, transparent 50%),
+              radial-gradient(at 100% 100%, rgba(15, 23, 42, 0.05) 0px, transparent 50%),
+              radial-gradient(at 0% 100%, rgba(56, 189, 248, 0.05) 0px, transparent 50%);
   background-color: var(--color-bg-base);
 }
 
