@@ -281,12 +281,37 @@ function scoreAnswerFallback(questionText, answerText, category) {
 }
 
 /**
+ * Build a rich project context string from parsedJson
+ */
+function extractProjectsContext(parsedJson) {
+  if (!parsedJson) return null;
+  let parsed = parsedJson;
+  if (typeof parsedJson === "string") {
+    try { parsed = JSON.parse(parsedJson); } catch { return null; }
+  }
+  const projects = parsed?.projects;
+  if (!Array.isArray(projects) || projects.length === 0) return null;
+
+  const lines = projects.map((p, i) => {
+    const techs = Array.isArray(p.technologies) ? p.technologies.join(", ") : "";
+    return `  Project ${i + 1}: "${p.name || "Unnamed"}"
+    - Description: ${p.description || "N/A"}
+    - Technologies: ${techs || "N/A"}
+    - Role: ${p.role || "N/A"}
+    - Link: ${p.link || "N/A"}`;
+  });
+  return lines.join("\n");
+}
+
+/**
  * Generate interview questions from resume text and structured JSON data using Gemini.
  */
 async function generateQuestionsFromResume(resumeText, skills, parsedJson, userSettings, excludedQuestions = []) {
   let context = "";
+  let projectsContext = extractProjectsContext(parsedJson);
+
   if (parsedJson) {
-    context = `Structured Candidate Resume Info (JSON): ${parsedJson}`;
+    context = `Structured Candidate Resume Info (JSON): ${typeof parsedJson === "string" ? parsedJson : JSON.stringify(parsedJson)}`;
   } else {
     context = `Resume Text: ${resumeText || "No resume text"}\nSkills: ${skills || "No skills extracted"}`;
   }
@@ -330,9 +355,25 @@ ${excludedQuestions.map((q, i) => `${i + 1}. "${q}"`).join("\n")}
 Ensure you cover completely different skills, projects, scenarios, or discussion points.`;
   }
 
+  // Project deep-dive instructions — this is the key enhancement
+  let projectInstruction = "";
+  if (projectsContext) {
+    projectInstruction = `
+IMPORTANT — Candidate Projects (MUST use these for at least 2-3 questions):
+The candidate has listed the following projects on their resume. Generate specific questions about these projects — ask about their architecture, technical decisions, challenges, what they would do differently, how they handled scale, etc. Reference the project by name in your questions.
+
+${projectsContext}
+
+Project question examples (adapt to candidate's actual projects):
+- "Walk me through the architecture of [ProjectName]. Why did you choose [technology]?"
+- "What was the hardest technical challenge you faced while building [ProjectName]?"
+- "How would you scale [ProjectName] to 10x its current load?"
+- "If you were to rebuild [ProjectName] today, what would you change?"`;
+  }
+
   const prompt = `Analyze the following resume data. Generate exactly ${targetCount} personalized, professional, and targeted mock job interview questions.
 The questions must cover this category count layout:
-- Technical: ${techCount} questions (Focus on technical skills, tools, and paradigms)
+- Technical: ${techCount} questions (Focus on technical skills, tools, and paradigms — including project-specific technical questions)
 - Behavioral: ${behCount} questions (Focus on past situations, collaboration, and STAR method responses)
 - Problem Solving: ${probCount} questions (Focus on debugging, troubleshooting, tradeoffs, and analysis)
 - Future Goals/Communication: ${futCount} questions (Focus on aspirations, clarity, and explaining architectures)
@@ -341,11 +382,13 @@ Rules:
 - Return ONLY a valid JSON array of objects. Each object must have exactly "category" and "text" fields. Do not include any markdown formatting like \`\`\`json or \`\`\`.
 - Category names in objects must strictly match: "Technical", "Behavioral", "Problem Solving", or "Communication/Goals".
 - Generate a completely unique, fresh, and different set of questions. Random seed/timestamp: ${Date.now()}.
+- Where the candidate has specific projects listed, REFERENCE THEM BY NAME in the questions. Do not ask generic questions when you can ask about their actual work.
 
 Interviewer Setup instructions:
 ${personaInstruction}
 ${focusInstruction}
 ${jdInstruction}
+${projectInstruction}
 
 ${exclusionInstruction}
 
@@ -390,13 +433,47 @@ ${context}`;
     }
   }
 
-  return generateQuestionsFromResumeFallback(resumeText, skills, targetCount);
+  return generateQuestionsFromResumeFallback(resumeText, skills, targetCount, parsedJson);
 }
 
-function generateQuestionsFromResumeFallback(resumeText, skills, targetCount = 10) {
+function generateQuestionsFromResumeFallback(resumeText, skills, targetCount = 10, parsedJson = null) {
   const text = (resumeText || "").toLowerCase();
   const skillList = (skills || "").split(",").map(s => s.trim()).filter(Boolean);
   const pool = [];
+
+  // Extract projects from parsedJson for project-specific fallback questions
+  let projects = [];
+  if (parsedJson) {
+    try {
+      const parsed = typeof parsedJson === "string" ? JSON.parse(parsedJson) : parsedJson;
+      if (Array.isArray(parsed?.projects) && parsed.projects.length > 0) {
+        projects = parsed.projects.filter(p => p.name);
+      }
+    } catch {}
+  }
+
+  // Project-specific questions (highest priority — most personalized)
+  projects.forEach(p => {
+    const techs = Array.isArray(p.technologies) && p.technologies.length > 0
+      ? p.technologies.slice(0, 3).join(", ")
+      : "the technologies used";
+    pool.push({
+      category: "Technical",
+      text: `Walk me through the architecture of your project "${p.name}". Why did you choose ${techs}, and what alternatives did you consider?`
+    });
+    pool.push({
+      category: "Problem Solving",
+      text: `What was the most challenging technical problem you encountered while building "${p.name}", and how did you resolve it?`
+    });
+    pool.push({
+      category: "Technical",
+      text: `If you were to rebuild "${p.name}" from scratch today, what would you do differently and why?`
+    });
+    pool.push({
+      category: "Problem Solving",
+      text: `How would you scale "${p.name}" to handle 10x more users? What bottlenecks would you expect first?`
+    });
+  });
 
   skillList.forEach(skill => {
     pool.push({
@@ -454,22 +531,31 @@ function generateQuestionsFromResumeFallback(resumeText, skills, targetCount = 1
 /**
  * Generate the opening question for a One-on-One conversation interview
  */
-async function generateOpeningQuestion(role, persona, resumeText) {
+async function generateOpeningQuestion(role, persona, resumeText, parsedJson = null) {
   const roleContext = role || "Software Engineer";
-  const resumeSnippet = resumeText ? resumeText.slice(0, 800) : "No resume provided.";
+  const resumeSnippet = resumeText ? resumeText.slice(0, 600) : "No resume provided.";
+
+  // Extract project names for richer opening questions
+  let projectsHint = "";
+  if (parsedJson) {
+    const ctx = extractProjectsContext(parsedJson);
+    if (ctx) {
+      projectsHint = `\nThe candidate has these projects on their resume:\n${ctx}\nConsider referencing a specific project in your opening question for a more personalized interview.`;
+    }
+  }
 
   const personaInstructions = {
     mentor: "You are a warm, friendly senior interviewer. Start with a welcoming, open-ended question.",
-    engineer: "You are a senior staff engineer. Start with a direct, technically-inclined opening.",
-    stress: "You are a tough, challenging interviewer. Start with a pointed question that tests confidence."
+    engineer: "You are a senior staff engineer. Start with a direct, technically-inclined opening — reference their tech stack or a specific project.",
+    stress: "You are a tough, challenging interviewer. Jump straight to something specific — ask about a project, a decision, or a technical claim."
   };
   const personaHint = personaInstructions[persona] || personaInstructions.mentor;
 
   const prompt = `${personaHint}
 The candidate is interviewing for a ${roleContext} role.
-Their resume summary: ${resumeSnippet}
+Their resume summary: ${resumeSnippet}${projectsHint}
 
-Generate exactly ONE opening interview question to start the conversation. Keep it natural, conversational, and under 30 words. Just the question text — no preamble, no labels.`;
+Generate exactly ONE opening interview question to start the conversation. Keep it natural, conversational, and under 35 words. Reference a specific project or technology if available. Just the question text — no preamble, no labels.`;
 
   if (genAI) {
     try {
@@ -530,7 +616,7 @@ exports.startInterview = async (req, res) => {
     // === CONVERSATION MODE ===
     if (mode === 'conversation') {
       const modeTitle = `One-on-One ${role ? `(${role})` : ''} — ${new Date().toLocaleDateString()}`;
-      const openingQuestion = await generateOpeningQuestion(role, persona, resumeText);
+      const openingQuestion = await generateOpeningQuestion(role, persona, resumeText, parsedJson);
       const interview = await Interview.create({
         user_id,
         resume_id: resume_id || null,
@@ -637,13 +723,29 @@ exports.conversationTurn = async (req, res) => {
       { upsert: true }
     );
 
+    // Retrieve candidate projects if resume is attached
+    let projectContext = "";
+    if (interview.resume_id) {
+      try {
+        const resumeDoc = await Resume.findById(interview.resume_id);
+        if (resumeDoc && resumeDoc.parsed_json) {
+          const pCtx = extractProjectsContext(resumeDoc.parsed_json);
+          if (pCtx) {
+            projectContext = `\nCandidate Projects (from resume):\n${pCtx}\nFeel free to ask follow-up questions about these specific projects or their architectural choices.`;
+          }
+        }
+      } catch (errRes) {
+        console.warn("Could not fetch resume for conversation turn project context:", errRes);
+      }
+    }
+
     // Build persona system prompt
     const personaSystemPrompts = {
-      mentor: `You are Alex, a warm and encouraging senior interviewer conducting a real-time ${role} interview. You listen carefully, acknowledge good points, probe deeper on interesting answers, and redirect when needed. Keep responses under 40 words. Be conversational and human.`,
-      engineer: `You are Jordan, a staff engineer conducting a technical ${role} interview. You are direct, expect specifics, and follow up on vague technical claims. Keep responses under 40 words. No filler, just substance.`,
-      stress: `You are Sam, a notoriously tough interviewer for ${role} roles. You push back, challenge assumptions, and never let vague answers slide. Keep responses under 40 words. Maintain pressure but stay professional.`
+      mentor: `You are Alex, a warm and encouraging senior interviewer conducting a real-time ${role} interview. You listen carefully, acknowledge good points, probe deeper on interesting answers (especially regarding their resume projects), and redirect when needed. Keep responses under 40 words. Be conversational and human.`,
+      engineer: `You are Jordan, a staff engineer conducting a technical ${role} interview. You are direct, expect specifics, and follow up on vague technical claims or architectural decisions in their projects. Keep responses under 40 words. No filler, just substance.`,
+      stress: `You are Sam, a notoriously tough interviewer for ${role} roles. You push back, challenge assumptions (especially on project claims), and never let vague answers slide. Keep responses under 40 words. Maintain pressure but stay professional.`
     };
-    const systemPrompt = personaSystemPrompts[persona] || personaSystemPrompts.mentor;
+    const systemPrompt = (personaSystemPrompts[persona] || personaSystemPrompts.mentor) + projectContext;
 
     // Determine if we should wrap up
     const shouldWrapUp = exchangeNum >= MAX_EXCHANGES - 2;
@@ -655,7 +757,7 @@ exports.conversationTurn = async (req, res) => {
 
     const wrapUpInstruction = shouldWrapUp
       ? "\nIMPORTANT: This is the final exchange. Thank the candidate and wrap up the interview naturally in 1-2 sentences. Set is_done to true."
-      : `\nDecide: should you follow up on their answer, probe a weak point, or transition to a new topic? Exchange ${exchangeNum + 1} of ${MAX_EXCHANGES}.`;
+      : `\nDecide: should you follow up on their answer, probe a project detail/weak point, or transition to a new topic? Exchange ${exchangeNum + 1} of ${MAX_EXCHANGES}.`;
 
     const prompt = `${systemPrompt}
 
