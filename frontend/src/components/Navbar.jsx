@@ -47,7 +47,6 @@ export const Navbar = () => {
     { path: '/dashboard', label: 'Dashboard' },
     { path: '/courses', label: 'Courses' },
     { path: '/history', label: 'Sessions' },
-    { path: '/settings', label: 'Setup' },
     { path: '/upload', label: 'Resume' },
   ];
 
@@ -94,6 +93,10 @@ export const Navbar = () => {
           >
             Interview
           </button>
+          {/* Setup link placed at the end */}
+          <Link to="/settings" className={pillClass('/settings')}>
+            Setup
+          </Link>
         </nav>
 
         {/* Right Desktop Actions */}
@@ -181,6 +184,18 @@ export const Navbar = () => {
               >
                 Interview
               </button>
+              {/* Setup button in mobile menu */}
+              <Link
+                to="/settings"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`px-3.5 py-2.5 rounded-2xl text-xs font-extrabold uppercase tracking-wider transition-colors backdrop-blur-md ${
+                  location.pathname === '/settings'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'bg-white/50 dark:bg-white/[0.06] text-slate-700 dark:text-slate-200 hover:bg-white/80'
+                }`}
+              >
+                Setup
+              </Link>
             </div>
 
             <div className="flex items-center justify-between pt-1">
