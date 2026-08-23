@@ -37,20 +37,30 @@ const NumberCounter = ({ targetValue, decimals = 0 }) => {
 };
 
 // Inline SVG Sparkline component (Modern Vercel-style micro-columns)
-const Sparkline = ({ data = [2, 3, 5, 4, 7] }) => {
-  const width = 80;
-  const height = 32;
+const Sparkline = ({ data = [2, 3, 5, 4, 7], color = "indigo" }) => {
+  const width = 64;
+  const height = 28;
   const max = Math.max(...data) || 10;
   const cleanData = data.slice(-5);
-  const barWidth = 6;
-  const gap = 5;
+  const barWidth = 5;
+  const gap = 4;
+
+  const colorMap = {
+    indigo: '#6366f1',
+    amber: '#f59e0b',
+    rose: '#f43f5e',
+    blue: '#3b82f6',
+    orange: '#f97316'
+  };
+  const fillColor = colorMap[color] || '#6366f1';
 
   return (
-    <svg width={width} height={height} className="overflow-visible opacity-80">
+    <svg width={width} height={height} className="overflow-visible shrink-0">
       {cleanData.map((val, idx) => {
         const barHeight = Math.max((val / max) * (height - 4), 4);
         const x = idx * (barWidth + gap);
         const y = height - barHeight;
+        const isLast = idx === cleanData.length - 1;
         return (
           <rect
             key={idx}
@@ -58,10 +68,10 @@ const Sparkline = ({ data = [2, 3, 5, 4, 7] }) => {
             y={y}
             width={barWidth}
             height={barHeight}
-            rx={2}
-            fill="var(--color-dashboard-lime)"
-            className="hover:opacity-100 transition-opacity"
-            opacity="0.7"
+            rx={2.5}
+            fill={fillColor}
+            opacity={isLast ? 1 : 0.35 + (idx * 0.12)}
+            className="transition-all duration-300 hover:opacity-100"
           />
         );
       })}
@@ -407,29 +417,87 @@ export const Dashboard = () => {
         )}
 
         {/* Metric Card Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3.5 sm:gap-6">
-          
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-5">
           {[
-            { label: 'Sessions Done', value: <NumberCounter targetValue={completedRounds} />, data: [1, 2, 2, 3, 3, completedRounds] },
-            { label: 'Avg Mock Score', value: <NumberCounter targetValue={avgScore} decimals={1} />, data: [5.5, 6.2, 7.0, avgScore] },
-            { label: 'Filler Words Spoken', value: <NumberCounter targetValue={totalFiller} />, data: [8, 6, 5, 4, totalFiller] },
-            { label: 'Speech Pace', value: <><NumberCounter targetValue={wpm} /> <span className="text-xs font-bold text-text-secondary">WPM</span></>, data: [110, 125, 140, wpm || 135] },
-            { label: 'Practice Streak', value: <NumberCounter targetValue={streak} />, data: activitySparkline, colSpan: true, icon: <Zap size={14} className="text-amber-500 fill-amber-500" /> },
+            {
+              label: 'Sessions Done',
+              value: <NumberCounter targetValue={completedRounds} />,
+              unit: 'rounds',
+              data: [1, 2, 2, 3, 3, completedRounds],
+              icon: <Target size={15} className="text-indigo-500" />,
+              iconBg: 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-100 dark:border-indigo-900/30',
+              color: 'indigo'
+            },
+            {
+              label: 'Avg Mock Score',
+              value: <NumberCounter targetValue={avgScore} decimals={1} />,
+              unit: '/ 10',
+              data: [5.5, 6.2, 7.0, avgScore],
+              icon: <Award size={15} className="text-amber-500" />,
+              iconBg: 'bg-amber-50 dark:bg-amber-950/40 border-amber-100 dark:border-amber-900/30',
+              color: 'amber'
+            },
+            {
+              label: 'Filler Words',
+              value: <NumberCounter targetValue={totalFiller} />,
+              unit: 'spoken',
+              data: [8, 6, 5, 4, totalFiller],
+              icon: <MessageSquare size={15} className="text-rose-500" />,
+              iconBg: 'bg-rose-50 dark:bg-rose-950/40 border-rose-100 dark:border-rose-900/30',
+              color: 'rose'
+            },
+            {
+              label: 'Speech Pace',
+              value: <NumberCounter targetValue={wpm} />,
+              unit: 'WPM',
+              data: [110, 125, 140, wpm || 135],
+              icon: <Zap size={15} className="text-blue-500" />,
+              iconBg: 'bg-blue-50 dark:bg-blue-950/40 border-blue-100 dark:border-blue-900/30',
+              color: 'blue'
+            },
+            {
+              label: 'Practice Streak',
+              value: <NumberCounter targetValue={streak} />,
+              unit: 'days 🔥',
+              data: activitySparkline,
+              colSpan: true,
+              icon: <TrendingUp size={15} className="text-orange-500" />,
+              iconBg: 'bg-orange-50 dark:bg-orange-950/40 border-orange-100 dark:border-orange-900/30',
+              color: 'orange'
+            },
           ].map((card, i) => (
-            <Card key={i} className={`flex flex-col justify-between p-5 min-h-[130px] relative ${card.colSpan ? 'col-span-2 md:col-span-1' : ''}`}>
+            <motion.div
+              key={i}
+              whileHover={{ y: -4, scale: 1.02 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+              className={`bg-white dark:bg-zinc-900/90 border border-slate-200/80 dark:border-white/10 rounded-3xl p-5 shadow-xs hover:shadow-xl hover:border-indigo-500/30 dark:hover:border-indigo-500/30 flex flex-col justify-between min-h-[135px] text-left transition-all group cursor-pointer ${card.colSpan ? 'col-span-2 lg:col-span-1' : ''}`}
+            >
+              {/* Card Header */}
               <div className="flex justify-between items-center w-full">
-                <span className="text-xs font-extrabold text-text-muted uppercase tracking-wider text-left">{card.label}</span>
-                {card.icon && <div>{card.icon}</div>}
-              </div>
-              <div className="flex items-end justify-between mt-3">
-                <span className="text-3xl md:text-4xl font-black text-dashboard-dark tracking-tight font-bold-display leading-none">
-                  {card.value}
+                <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-400 dark:text-white/40 uppercase tracking-widest truncate">
+                  {card.label}
                 </span>
-                <Sparkline data={card.data} />
+                <div className={`p-1.5 sm:p-2 rounded-xl border ${card.iconBg} shrink-0 group-hover:scale-110 transition-transform`}>
+                  {card.icon}
+                </div>
               </div>
-            </Card>
-          ))}
 
+              {/* Number & Unit + Sparkline */}
+              <div className="flex items-end justify-between mt-3 gap-2">
+                <div className="flex flex-col text-left">
+                  <span className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight font-bold-display leading-none">
+                    {card.value}
+                  </span>
+                  {card.unit && (
+                    <span className="text-[10px] font-extrabold text-slate-400 dark:text-white/40 uppercase tracking-wider mt-1">
+                      {card.unit}
+                    </span>
+                  )}
+                </div>
+                <Sparkline data={card.data} color={card.color} />
+              </div>
+            </motion.div>
+          ))}
         </div>
 
         {/* Dashboard Split Content */}
