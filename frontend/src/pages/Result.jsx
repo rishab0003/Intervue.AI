@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { api } from '../services/api';
 import Mascot from '../components/Mascot';
@@ -13,14 +13,31 @@ import { getAudioLocal } from '../utils/indexedDB';
 export const Result = () => {
   const { user, showToast } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
-  const interviewId = searchParams.get('id');
+
+  // Robust interview ID extraction for HashRouter
+  const getInterviewId = () => {
+    const fromParams = searchParams.get('id');
+    if (fromParams) return fromParams;
+
+    const hashQuery = window.location.hash.includes('?') ? window.location.hash.split('?')[1] : '';
+    const hashParams = new URLSearchParams(hashQuery);
+    if (hashParams.get('id')) return hashParams.get('id');
+
+    const searchObj = new URLSearchParams(location.search);
+    return searchObj.get('id');
+  };
+
+  const interviewId = getInterviewId();
 
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
   const [playingAudio, setPlayingAudio] = useState({}); // idx -> boolean
   const [openModelAnswers, setOpenModelAnswers] = useState({}); // idx -> boolean
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [pdfOptions, setPdfOptions] = useState({
     summary: true,
     radar: true,
@@ -35,8 +52,8 @@ export const Result = () => {
       return;
     }
     if (!interviewId) {
-      showToast("No interview ID specified", "error");
-      navigate('/dashboard');
+      setErrorMessage("No interview session ID specified. Please select a session from your Dashboard or History log.");
+      setLoading(false);
       return;
     }
     loadResults();
@@ -44,16 +61,16 @@ export const Result = () => {
 
   const loadResults = async () => {
     setLoading(true);
+    setErrorMessage('');
     try {
       const { data, error } = await api.getResults(interviewId);
       if (error) {
-        showToast(error, 'error');
-        navigate('/dashboard');
-        return;
+        setErrorMessage(error || "Failed to fetch report for this session.");
+      } else if (data) {
+        setResult(data);
       }
-      setResult(data);
     } catch (err) {
-      showToast("Cannot fetch mock results.", "error");
+      setErrorMessage("Cannot fetch mock results from server.");
     } finally {
       setLoading(false);
     }
@@ -67,7 +84,8 @@ export const Result = () => {
   // Play audio answers
   const togglePlayAudio = async (idx, audioPath) => {
     const backendHost = window.location.hostname || 'localhost';
-    const serverAudioUrl = audioPath ? `http://${backendHost}:5055${audioPath}` : null;
+    const formattedPath = audioPath ? (audioPath.startsWith('/') ? audioPath : `/${audioPath}`) : '';
+    const serverAudioUrl = audioPath ? (audioPath.startsWith('http') ? audioPath : `http://${backendHost}:5055${formattedPath}`) : null;
 
     if (playingAudio[idx]) {
       const aud = document.getElementById(`audio-player-${idx}`);
@@ -116,26 +134,46 @@ export const Result = () => {
     );
   }
 
+  if (errorMessage) {
+    return (
+      <div className="flex-1 max-w-xl mx-auto w-full px-4 py-16 flex flex-col items-center justify-center text-center gap-4">
+        <Mascot pose="encourage" size={80} />
+        <Card className="p-8 flex flex-col gap-4 items-center">
+          <AlertTriangle size={32} className="text-amber-500" />
+          <h2 className="text-lg font-black text-slate-900 dark:text-white">Session Report Unavailable</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-sm">
+            {errorMessage}
+          </p>
+          <Link
+            to="/history"
+            className="mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-6 py-2.5 rounded-xl text-xs shadow-md"
+          >
+            Go to Sessions History Log
+          </Link>
+        </Card>
+      </div>
+    );
+  }
   const overall = result?.interview?.overall_score || 0;
-  const answersWithWpm = result?.answers?.filter(a => a.wpm > 0) || [];
+  const answersWithWpm = (result?.answers || []).filter(a => a && a.wpm > 0);
   const computedAvgWpm = (result?.interview?.avg_wpm && result.interview.avg_wpm > 0)
     ? Math.round(result.interview.avg_wpm)
-    : (answersWithWpm.length > 0 ? Math.round(answersWithWpm.reduce((sum, a) => sum + a.wpm, 0) / answersWithWpm.length) : 0);
+    : (answersWithWpm.length > 0 ? Math.round(answersWithWpm.reduce((sum, a) => sum + (a.wpm || 0), 0) / answersWithWpm.length) : 0);
 
   const computedTotalFiller = (result?.interview?.total_filler !== undefined && result?.interview?.total_filler !== null)
-    ? result.interview.total_filler
-    : (result?.answers?.reduce((sum, a) => sum + (a.filler_count || 0), 0) || 0);
+    ? (result.interview.total_filler || 0)
+    : (result?.answers?.reduce((sum, a) => sum + (a?.filler_count || 0), 0) || 0);
 
   // Calculate 5-axis Competency Radar scores
   const getCompetencyScores = () => {
-    if (!result?.answers || result.answers.length === 0) {
+    if (!result?.answers || !Array.isArray(result.answers) || result.answers.length === 0) {
       return { technical: 80, problem: 75, pacing: 80, star: 70, architecture: 75 };
     }
-    const techAns = result.answers.filter(a => a.category === 'Technical');
-    const probAns = result.answers.filter(a => a.category === 'Problem Solving');
-    const behAns = result.answers.filter(a => a.category === 'Behavioral');
+    const techAns = result.answers.filter(a => a && a.category === 'Technical');
+    const probAns = result.answers.filter(a => a && a.category === 'Problem Solving');
+    const behAns = result.answers.filter(a => a && a.category === 'Behavioral');
 
-    const avg = (arr) => arr.length > 0 ? (arr.reduce((sum, a) => sum + (a.score || 7), 0) / arr.length) * 10 : 75;
+    const avg = (arr) => arr.length > 0 ? (arr.reduce((sum, a) => sum + (a?.score || 7), 0) / arr.length) * 10 : 75;
 
     return {
       technical: Math.round(avg(techAns)),
@@ -147,6 +185,19 @@ export const Result = () => {
   };
 
   const compScores = getCompetencyScores();
+
+  const handleDownloadPdf = async () => {
+    setDownloadingPdf(true);
+    showToast("Generating PDF report...", "info");
+    const { error } = await api.downloadPdfReport(interviewId);
+    setDownloadingPdf(false);
+    if (error) {
+      showToast(error, "error");
+    } else {
+      showToast("PDF Report downloaded successfully! 🎉", "success");
+      setPdfModalOpen(false);
+    }
+  };
 
   // Helper to render filler word highlighted transcript
   const renderAnnotatedTranscript = (text) => {
@@ -459,15 +510,14 @@ export const Result = () => {
               >
                 Cancel
               </button>
-              <a
-                href={`/api/interview/${interviewId}/report`}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => setPdfModalOpen(false)}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs py-3 rounded-xl shadow-md text-center flex items-center justify-center gap-1.5"
+              <button
+                onClick={handleDownloadPdf}
+                disabled={downloadingPdf}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-extrabold text-xs py-3 rounded-xl shadow-md text-center flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <Download size={14} /> Download PDF
-              </a>
+                <Download size={14} />
+                <span>{downloadingPdf ? "Generating PDF..." : "Download PDF"}</span>
+              </button>
             </div>
           </motion.div>
         </div>

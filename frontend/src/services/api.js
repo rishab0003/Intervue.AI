@@ -130,5 +130,35 @@ export const api = {
     apiFetch("/courses/ask", {
       method: "POST",
       body: JSON.stringify({ question })
-    })
+    }),
+
+  downloadPdfReport: async (interviewId) => {
+    try {
+      const token = getToken();
+      const backendHost = window.location.hostname || 'localhost';
+      const url = `http://${backendHost}:5055/api/interview/${interviewId}/report?token=${encodeURIComponent(token || '')}`;
+
+      const res = await fetch(url, {
+        headers: token ? { "Authorization": `Bearer ${token}` } : {}
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to download PDF report from server.");
+      }
+
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `Intervue-Report-${interviewId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+      return { data: true, error: null };
+    } catch (err) {
+      console.error("PDF download error:", err);
+      return { data: null, error: err.message || "Failed to download PDF report" };
+    }
+  }
 };

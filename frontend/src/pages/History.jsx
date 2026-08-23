@@ -5,7 +5,7 @@ import { api } from '../services/api';
 import Mascot from '../components/Mascot';
 import Card from '../components/Card';
 import Button from '../components/Button';
-import { Calendar, ChevronRight, FileText, ArrowLeft, TrendingUp, X, Award, Eye, Activity, HelpCircle, AlertTriangle } from 'lucide-react';
+import { Calendar, ChevronRight, FileText, ArrowLeft, TrendingUp, X, Award, Eye, Activity, HelpCircle, AlertTriangle, Play, Pause, Volume2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const History = () => {
@@ -14,6 +14,7 @@ export const History = () => {
 
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [playingAudio, setPlayingAudio] = useState({});
 
   // Drawer details state
   const [selectedSessionId, setSelectedSessionId] = useState(null);
@@ -63,6 +64,46 @@ export const History = () => {
       } finally {
         setDetailsLoading(prev => ({ ...prev, [interviewId]: false }));
       }
+    }
+  };
+
+  const togglePlayAudio = (idx, audioPath) => {
+    const backendHost = window.location.hostname || 'localhost';
+    const formattedPath = audioPath ? (audioPath.startsWith('/') ? audioPath : `/${audioPath}`) : '';
+    const serverAudioUrl = audioPath ? (audioPath.startsWith('http') ? audioPath : `http://${backendHost}:5055${formattedPath}`) : null;
+
+    if (!serverAudioUrl) {
+      showToast("No audio recording found for this question.", "info");
+      return;
+    }
+
+    if (playingAudio[idx]) {
+      const aud = document.getElementById(`drawer-audio-${idx}`);
+      if (aud) aud.pause();
+      setPlayingAudio((prev) => ({ ...prev, [idx]: false }));
+    } else {
+      Object.keys(playingAudio).forEach((k) => {
+        const aud = document.getElementById(`drawer-audio-${k}`);
+        if (aud) aud.pause();
+      });
+
+      let aud = document.getElementById(`drawer-audio-${idx}`);
+      if (!aud) {
+        aud = new Audio(serverAudioUrl);
+        aud.id = `drawer-audio-${idx}`;
+        aud.onended = () => {
+          setPlayingAudio((prev) => ({ ...prev, [idx]: false }));
+        };
+        document.body.appendChild(aud);
+      }
+
+      aud.play();
+      setPlayingAudio((prev) => {
+        const next = {};
+        Object.keys(prev).forEach((k) => { next[k] = false; });
+        next[idx] = true;
+        return next;
+      });
     }
   };
 
@@ -346,8 +387,22 @@ export const History = () => {
                             </strong>
 
                             {/* Response text snippet */}
-                            <div className="bg-white dark:bg-zinc-950 border border-slate-100 dark:border-zinc-900 p-3 rounded-xl">
-                              <span className="text-[8px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1">Your Answer</span>
+                            <div className="bg-white dark:bg-zinc-950 border border-slate-100 dark:border-zinc-900 p-3 rounded-xl flex flex-col gap-1.5">
+                              <div className="flex justify-between items-center">
+                                <span className="text-[8px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Your Answer</span>
+                                {ans.audio_path && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      togglePlayAudio(idx, ans.audio_path);
+                                    }}
+                                    className="p-1 rounded-full bg-slate-100 dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 hover:scale-105 transition-transform flex items-center gap-1 text-[9px] font-bold px-2 cursor-pointer"
+                                  >
+                                    {playingAudio[idx] ? <Pause size={10} fill="currentColor" /> : <Play size={10} fill="currentColor" />}
+                                    <span>{playingAudio[idx] ? 'Pause Audio' : 'Play Audio'}</span>
+                                  </button>
+                                )}
+                              </div>
                               <p className="text-[11px] italic text-slate-600 dark:text-zinc-400 leading-relaxed truncate-2-lines">
                                 "{ans.answer_text}"
                               </p>
@@ -414,8 +469,15 @@ export const History = () => {
                   Close
                 </button>
                 <button
-                  onClick={() => navigate(`/result?id=${selectedSessionId}`)}
-                  className="flex-1 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white font-bold py-3 px-4 rounded-2xl text-[10px] uppercase tracking-wider transition-all shadow-sm flex items-center justify-center gap-1.5"
+                  onClick={() => {
+                    if (selectedSessionId) {
+                      setIsDrawerOpen(false);
+                      navigate(`/result?id=${selectedSessionId}`);
+                    } else {
+                      showToast("Please select a session first", "info");
+                    }
+                  }}
+                  className="flex-1 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white font-bold py-3 px-4 rounded-2xl text-[10px] uppercase tracking-wider transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   View Full Report & Audio
                 </button>
