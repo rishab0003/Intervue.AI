@@ -3,33 +3,33 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-bg-base: #FAF9F6;
+  --color-bg-base: #F1F5F9;
   --color-accent: #0284C7;
   --color-accent-soft: #E0F2FE;
   --color-accent-dark: #0369A1;
   --color-success: #047857;
   --color-focus-area: #D97706;
-  --color-text-primary: #1C1917;
-  --color-text-secondary: #44403C;
-  --color-text-muted: #78716C;
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #334155;
+  --color-text-muted: #64748B;
 
   /* Card / Surface system */
   --color-surface: #FFFFFF;
-  --color-surface-border: rgba(28, 25, 23, 0.09);
-  --color-surface-raised: #F5F3EF;
-  --color-surface-raised-border: rgba(28, 25, 23, 0.06);
+  --color-surface-border: rgba(15, 23, 42, 0.10);
+  --color-surface-raised: #F8FAFC;
+  --color-surface-raised-border: rgba(15, 23, 42, 0.08);
 
   /* Landing Page Specific Colors */
-  --color-landing-base: #FAF9F6;
-  --color-landing-sec: #F3F1EC;
+  --color-landing-base: #F1F5F9;
+  --color-landing-sec: #E2E8F0;
   --color-landing-accent: #0284C7;
-  --color-landing-text: #1C1917;
-  --color-landing-body: #44403C;
+  --color-landing-text: #0F172A;
+  --color-landing-body: #334155;
 
   /* SaaS Dashboard Specific Colors */
-  --color-dashboard-bg: #FAF9F6;
+  --color-dashboard-bg: transparent;
   --color-dashboard-lime: #0284C7;
-  --color-dashboard-dark: #1C1917;
+  --color-dashboard-dark: #0F172A;
 
   /* SVG/Chart adaptive colors */
   --color-chart-grid: rgba(15,23,42,0.08);
@@ -71,7 +71,7 @@
   --color-landing-body: #94A3B8;
 
   /* SaaS Dashboard Specific Colors */
-  --color-dashboard-bg: #0C1929;
+  --color-dashboard-bg: transparent;
   --color-dashboard-lime: #38BDF8;
   --color-dashboard-dark: #F1F5F9;
 
@@ -84,10 +84,18 @@ body {
   font-family: var(--font-body);
   font-size: 16px;
   line-height: 1.6;
-  background: radial-gradient(at 0% 0%, rgba(2, 132, 199, 0.06) 0px, transparent 50%),
-              radial-gradient(at 100% 0%, rgba(3, 105, 161, 0.05) 0px, transparent 50%),
-              radial-gradient(at 100% 100%, rgba(15, 23, 42, 0.04) 0px, transparent 50%),
-              radial-gradient(at 0% 100%, rgba(2, 132, 199, 0.05) 0px, transparent 50%);
+  background-image: 
+    /* Top-Left: Ocean Blue Glow */
+    radial-gradient(at 0% 0%, rgba(2, 132, 199, 0.28) 0px, transparent 55%),
+    /* Top-Right: Deep Indigo/Purple Glow */
+    radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.25) 0px, transparent 55%),
+    /* Bottom-Right: Emerald Green Glow */
+    radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.22) 0px, transparent 55%),
+    /* Bottom-Left: Teal Cyan Glow */
+    radial-gradient(at 0% 100%, rgba(14, 165, 233, 0.22) 0px, transparent 55%),
+    /* Crisp Dot Matrix Grid */
+    radial-gradient(rgba(15, 23, 42, 0.12) 1.2px, transparent 1.2px);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 20px 20px;
   background-color: var(--color-bg-base);
   background-attachment: fixed;
   color: var(--color-text-primary);
@@ -99,11 +107,20 @@ body {
 
 .dark body,
 .dark {
-  background: radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.08) 0px, transparent 50%),
-              radial-gradient(at 100% 0%, rgba(2, 132, 199, 0.06) 0px, transparent 50%),
-              radial-gradient(at 100% 100%, rgba(15, 23, 42, 0.05) 0px, transparent 50%),
-              radial-gradient(at 0% 100%, rgba(56, 189, 248, 0.05) 0px, transparent 50%);
+  background-image: 
+    /* Top-Left: Electric Cyan Blue Glow */
+    radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.18) 0px, transparent 50%),
+    /* Top-Right: Deep Indigo/Purple Glow */
+    radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.16) 0px, transparent 50%),
+    /* Bottom-Right: Vibrant Emerald Green Glow */
+    radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.15) 0px, transparent 50%),
+    /* Bottom-Left: Deep Ocean Cyan Glow */
+    radial-gradient(at 0% 100%, rgba(14, 116, 144, 0.15) 0px, transparent 50%),
+    /* Dot Matrix Grid Overlay */
+    radial-gradient(rgba(255, 255, 255, 0.08) 1.2px, transparent 1.2px);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 20px 20px;
   background-color: var(--color-bg-base);
+  background-attachment: fixed;
 }
 
 h1, h2, h3, h4, h5, h6 {
