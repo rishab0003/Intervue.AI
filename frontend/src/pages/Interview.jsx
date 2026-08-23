@@ -10,6 +10,7 @@ import { Video, Mic, ShieldAlert, Sparkles, Check, Play, Pause, RotateCcw, Alert
 import { motion, AnimatePresence } from 'framer-motion';
 import LiquidLoader from '../components/LiquidLoader';
 import { saveAudioLocal } from '../utils/indexedDB';
+import { correctSpeechTranscript } from '../utils/speechCorrection';
 
 export const Interview = () => {
   const { user, showToast } = useApp();
@@ -620,7 +621,9 @@ export const Interview = () => {
           }
 
           const fullText = (accumulatedTranscriptRef.current + ' ' + currentSessionFinal + ' ' + currentSessionInterim).replace(/\s+/g, ' ').trim();
-          setTranscript(fullText);
+          const activeQText = questions[currentIdx]?.text || currentAIMessage || '';
+          const alignedText = correctSpeechTranscript(fullText, activeQText);
+          setTranscript(alignedText);
         };
 
         recognition.onend = () => {

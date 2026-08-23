@@ -134,6 +134,38 @@ function getCustomResourceRecommendations(answers) {
 }
 
 /**
+ * Contextually autocorrects speech-to-text transcript mishearings using LLM knowledge.
+ */
+async function refineTranscriptWithContext(questionText, rawTranscript) {
+  if (!rawTranscript || rawTranscript.trim().length < 5) return rawTranscript;
+
+  const prompt = `You are an expert AI Voice Interview Speech Alignment Engine.
+The candidate was asked the following job interview question:
+Question: "${questionText || ''}"
+
+Raw Spoken Transcript recorded via speech-to-text:
+"${rawTranscript}"
+
+Your Task:
+Autocorrect any misrecognized words, broken domain terms, or speech-to-text phonetic mishearings (e.g. "type script" -> "TypeScript", "post gress" -> "PostgreSQL", "re act" -> "React", "a sync" -> "async", "sequel" -> "SQL").
+Keep the candidate's exact meaning, words, and intended points intact. Only repair misheard technical terms, casing, and basic grammar punctuation.
+
+Return ONLY the corrected transcript string without any markdown formatting or explanations.`;
+
+  if (genAI) {
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const result = await model.generateContent(prompt);
+      const text = result.response.text().trim();
+      if (text && text.length >= rawTranscript.length * 0.4) {
+        return text;
+      }
+    } catch (err) {}
+  }
+  return rawTranscript;
+}
+
+/**
  * Score an answer based on Gemini AI or fallback heuristics.
  */
 async function scoreAnswer(questionText, answerText, category) {
@@ -834,7 +866,8 @@ exports.saveAnswer = async (req, res) => {
   }
 
   try {
-    const { score, feedback, sub_scores, model_answer } = await scoreAnswer(question_text, answer_text, category);
+    const refinedAnswerText = await refineTranscriptWithContext(question_text, answer_text);
+    const { score, feedback, sub_scores, model_answer } = await scoreAnswer(question_text, refinedAnswerText, category);
     const sub_scores_json = sub_scores ? JSON.stringify(sub_scores) : null;
 
     const audio_path = req.file ? `/uploads/recordings/${req.file.filename}` : null;
@@ -864,7 +897,7 @@ exports.saveAnswer = async (req, res) => {
     const updateFields = {
       question_text,
       category,
-      answer_text,
+      answer_text: refinedAnswerText || answer_text,
       score,
       feedback,
       filler_count: fillerCount,
