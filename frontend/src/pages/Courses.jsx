@@ -343,6 +343,7 @@ export const Courses = () => {
 
   const TABS = [
     { id: 'tracks', label: 'Career Tracks', icon: <Map size={14} /> },
+    { id: 'flashcards', label: 'Flashcards Drill', icon: <Zap size={14} /> },
     { id: 'companion', label: 'AI Companion', icon: <Bot size={14} /> },
     { id: 'recommendations', label: 'AI Recommendations', icon: <Sparkles size={14} /> },
   ];
@@ -446,6 +447,89 @@ export const Courses = () => {
           )}
 
           {/* TAB 2 — AI Companion Chat */}
+          {/* TAB 2 — Interactive Flashcard Drills */}
+          {activeTab === 'flashcards' && (
+            <motion.div
+              key="flashcards"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+              className="flex flex-col gap-6"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-black text-text-muted uppercase tracking-widest">Rapid Technical Drills</p>
+                  <h2 className="text-lg font-black text-dashboard-dark dark:text-white mt-0.5">Q&A Flashcards Hub</h2>
+                </div>
+              </div>
+
+              {/* Flashcards Container */}
+              {(() => {
+                const flashcardsData = [
+                  { id: 1, category: 'System Design', question: 'What is Rate Limiting and how does Token Bucket work?', answer: 'Rate limiting controls request frequency. Token bucket adds tokens at a fixed rate; incoming requests consume tokens. If empty, request gets 429 Too Many Requests.' },
+                  { id: 2, category: 'System Design', question: 'What is the CAP Theorem in Distributed Systems?', answer: 'You can only guarantee 2 of 3 properties: Consistency (all nodes see same data), Availability (every request receives a response), Partition Tolerance (system works despite network drops).' },
+                  { id: 3, category: 'Algorithms', question: 'Explain Dynamic Programming vs Greedy Algorithms', answer: 'DP solves subproblems once and stores results (memoization) for optimal global outcome. Greedy makes the locally optimal choice at each step without backtracking.' },
+                  { id: 4, category: 'Algorithms', question: 'What is the time & space complexity of QuickSort?', answer: 'Average Time: O(N log N). Worst Time: O(N²) (poor pivot selection). Space Complexity: O(log N) due to recursive call stack.' },
+                  { id: 5, category: 'STAR Method', question: 'How do you structure a behavioral answer using STAR?', answer: 'Situation (15%): Context. Task (15%): Your responsibility. Action (50%): What YOU specifically executed. Result (20%): Quantifiable outcomes.' },
+                  { id: 6, category: 'Database', question: 'What are Database Indexes and why use B-Trees?', answer: 'Indexes avoid O(N) full table scans by building an ordered B-Tree structure, enabling O(log N) binary search lookups for target keys.' },
+                ];
+
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {flashcardsData.map((card, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          const el = document.getElementById(`flashcard-inner-${idx}`);
+                          if (el) el.classList.toggle('rotate-y-180');
+                        }}
+                        className="perspective-1000 h-[220px] cursor-pointer group select-none"
+                      >
+                        <div
+                          id={`flashcard-inner-${idx}`}
+                          className="relative w-full h-full duration-500 transform-style-3d transition-transform rounded-3xl shadow-sm"
+                        >
+                          {/* Front (Question) */}
+                          <div className="absolute inset-0 w-full h-full bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-white/10 rounded-3xl p-6 flex flex-col justify-between text-left backface-hidden">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[9px] font-extrabold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-0.5 rounded-full">
+                                {card.category}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-bold">Click to Flip 🔄</span>
+                            </div>
+                            <h4 className="text-sm font-extrabold text-slate-900 dark:text-white leading-snug">
+                              {card.question}
+                            </h4>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                              Card #{card.id}
+                            </span>
+                          </div>
+
+                          {/* Back (Answer) */}
+                          <div className="absolute inset-0 w-full h-full bg-indigo-600 text-white rounded-3xl p-6 flex flex-col justify-between text-left backface-hidden rotate-y-180">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[9px] font-extrabold uppercase tracking-widest text-indigo-100 bg-indigo-500/50 px-2.5 py-0.5 rounded-full">
+                                AI Coach Answer
+                              </span>
+                              <span className="text-[10px] text-indigo-200 font-bold">Click to Flip 🔄</span>
+                            </div>
+                            <p className="text-xs font-semibold leading-relaxed text-indigo-50">
+                              {card.answer}
+                            </p>
+                            <span className="text-[10px] font-black text-indigo-200 uppercase tracking-widest">
+                              Mastered ✓
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </motion.div>
+          )}
+
           {activeTab === 'companion' && (
             <motion.div
               key="companion"

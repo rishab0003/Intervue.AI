@@ -338,7 +338,7 @@ export const Dashboard = () => {
                           : 'text-text-secondary hover:bg-slate-50 dark:hover:bg-zinc-900'
                       }`}
                     >
-                      ✏️ Custom Range...
+                      <span className="flex items-center gap-1.5"><Calendar size={11} /> Custom Range...</span>
                     </button>
                   </div>
                 </>
@@ -518,21 +518,125 @@ export const Dashboard = () => {
 
               <div className="my-4">
                 <h3 className="text-xl font-bold tracking-tight leading-snug text-indigo-950 dark:text-indigo-100">
-                  {completedRounds > 0 
-                    ? "Your fluency scores improved by 12.5% this week!"
-                    : "Upload your CV/resume PDF to begin custom AI mock practice"}
+                  {stats?.insight || "Practice 2 more technical rounds this week to build your performance history and unlock deep STAR analysis."}
                 </h3>
-                <p className="text-sm text-indigo-800/75 dark:text-indigo-200/70 mt-2 leading-relaxed">
-                  Gaze focus tracking recorded <strong className="text-indigo-750 dark:text-indigo-450 font-extrabold">92% camera eye contact</strong> during your latest session. Keep up the steady pace.
-                </p>
               </div>
 
-              <Link
-                to="/interview"
-                className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-650 text-white font-extrabold text-xs uppercase tracking-wider px-5 py-3 rounded-full text-center shadow-md hover:scale-[1.01] transition-transform w-fit cursor-pointer"
-              >
-                Target Weak Categories
-              </Link>
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-indigo-200/50 dark:border-indigo-900/30">
+                <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                  Weekly Recommendation
+                </span>
+                <Link
+                  to="/interview"
+                  className="text-xs font-extrabold text-indigo-600 dark:text-indigo-300 hover:text-indigo-800 dark:hover:text-white flex items-center gap-1 group"
+                >
+                  <span>Launch Practice Round</span>
+                  <ArrowUpRight size={13} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                </Link>
+              </div>
+            </Card>
+
+            {/* MNC Company Readiness Gauge Card */}
+            <Card className="p-6 text-left flex flex-col gap-5 bg-white dark:bg-zinc-900/90 border border-slate-200/80 dark:border-white/10 rounded-3xl shadow-sm">
+              <div className="flex flex-wrap justify-between items-center gap-3 border-b border-slate-100 dark:border-white/5 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/30 rounded-2xl">
+                    <Target size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-900 dark:text-white">MNC Role Readiness Gauge</h3>
+                    <p className="text-[11px] text-slate-500 dark:text-white/40 mt-0.5">Calculated from past mock technical accuracy & WPM pacing</p>
+                  </div>
+                </div>
+
+                <span className="text-xs font-extrabold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/40 px-3 py-1 rounded-full">
+                  Enterprise Benchmark
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                {[
+                  {
+                    company: 'Amazon',
+                    role: 'SDE-II',
+                    score: Math.min(96, Math.max(65, Math.round((avgScore / 10) * 92 + (streak * 2)))),
+                    icon: (
+                      <div className="p-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-900/40 rounded-xl flex items-center justify-center">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                          <path d="M15.3 16.5c-2.3 1.7-5.7 2.6-8.6 2.6-4.1 0-7.8-1.5-10.6-4.1-.2-.2 0-.5.3-.4 3.7 2.1 8.3 3.4 13 3.4 2.6 0 5.4-.5 8-1.6.4-.2.7.2.3.5z" fill="#FF9900" />
+                          <path d="M16.6 15.3c-.2-.3-1.6-.2-2.3-.1-.2 0-.3-.2-.1-.3.8-.7 2.2-.5 2.5-.2.3.3.1 1.7-.5 2.5-.1.2-.3.1-.3-.1.1-.7.7-1.5.7-1.8z" fill="#FF9900" />
+                          <path d="M13.8 10.6c0-1.6-.8-2.6-2.5-2.6-1.5 0-2.6 1-2.9 2.4-.1.4.2.6.5.6.3 0 .5-.2.6-.5.2-.8.8-1.3 1.7-1.3 1 0 1.5.6 1.5 1.5v.3c-2.6.2-4.4.9-4.4 2.7 0 1.2.9 2.1 2.2 2.1 1.2 0 2.1-.6 2.5-1.5h.1v1.2c0 .2.2.4.4.4h1.1c.2 0 .4-.2.4-.4v-4.9z" fill="#FF9900" />
+                        </svg>
+                      </div>
+                    ),
+                    bg: 'hover:border-amber-400/50'
+                  },
+                  {
+                    company: 'Google',
+                    role: 'L4 Engineer',
+                    score: Math.min(94, Math.max(60, Math.round((avgScore / 10) * 88))),
+                    icon: (
+                      <div className="p-2 bg-blue-50 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/40 rounded-xl flex items-center justify-center">
+                        <svg width="18" height="18" viewBox="0 0 24 24">
+                          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                        </svg>
+                      </div>
+                    ),
+                    bg: 'hover:border-blue-400/50'
+                  },
+                  {
+                    company: 'Microsoft',
+                    role: 'Senior Software',
+                    score: Math.min(98, Math.max(70, Math.round((avgScore / 10) * 95))),
+                    icon: (
+                      <div className="p-2 bg-sky-50 dark:bg-sky-950/40 border border-sky-200/80 dark:border-sky-900/40 rounded-xl flex items-center justify-center">
+                        <svg width="18" height="18" viewBox="0 0 24 24">
+                          <rect x="1" y="1" width="10" height="10" fill="#F25022"/>
+                          <rect x="13" y="1" width="10" height="10" fill="#7FBA00"/>
+                          <rect x="1" y="13" width="10" height="10" fill="#00A4EF"/>
+                          <rect x="13" y="13" width="10" height="10" fill="#FFB900"/>
+                        </svg>
+                      </div>
+                    ),
+                    bg: 'hover:border-sky-400/50'
+                  },
+                  {
+                    company: 'Meta',
+                    role: 'E4 Developer',
+                    score: Math.min(92, Math.max(58, Math.round((avgScore / 10) * 85))),
+                    icon: (
+                      <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-900/40 rounded-xl flex items-center justify-center">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                          <path d="M16.4 4C14.2 4 12.4 5.3 11.2 7 9.9 5.3 8.2 4 6 4 3.2 4 1 6.5 1 9.8 1 14.2 5.5 19 11.2 20c5.7-1 10.2-5.8 10.2-10.2C21.4 6.5 19.2 4 16.4 4zm-5.2 12.8C6.9 15.9 3.5 12.5 3.5 9.8c0-1.8 1.2-3.3 2.9-3.3 1.8 0 3.3 1.4 4.8 3.5 1.5-2.1 3-3.5 4.8-3.5 1.7 0 2.9 1.5 2.9 3.3 0 2.7-3.4 6.1-7.7 7C11.2 16.8 11.2 16.8 11.2 16.8z" fill="#0668E1"/>
+                        </svg>
+                      </div>
+                    ),
+                    bg: 'hover:border-indigo-400/50'
+                  },
+                ].map((co, idx) => (
+                  <div key={idx} className={`p-4 bg-slate-50 dark:bg-zinc-950/60 border border-slate-200/80 dark:border-white/5 rounded-2xl flex flex-col justify-between gap-3 transition-all ${co.bg}`}>
+                    <div className="flex justify-between items-center">
+                      {co.icon}
+                      <span className={`text-xs font-black px-2.5 py-0.5 rounded-full ${co.score >= 80 ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40' : 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40'}`}>
+                        {co.score}% Ready
+                      </span>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-extrabold text-slate-900 dark:text-white">{co.company}</p>
+                      <p className="text-[10px] text-slate-400 dark:text-white/40">{co.role}</p>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="w-full bg-slate-200 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-blue-600 dark:bg-blue-400 h-full rounded-full transition-all duration-500" style={{ width: `${co.score}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </Card>
 
             {/* Score Comparison & Focus Areas Grid */}

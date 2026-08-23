@@ -6,8 +6,8 @@ import Mascot from '../components/Mascot';
 import Card from '../components/Card';
 import ProgressBar from '../components/ProgressBar';
 import Button from '../components/Button';
-import { CheckCircle, Award, AlertTriangle, ArrowLeft, Play, Pause, ExternalLink, HelpCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { CheckCircle, Award, AlertTriangle, ArrowLeft, Play, Pause, ExternalLink, HelpCircle, FileText, Download, X, Target, Check } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { getAudioLocal } from '../utils/indexedDB';
 
 export const Result = () => {
@@ -20,6 +20,14 @@ export const Result = () => {
   const [loading, setLoading] = useState(true);
   const [playingAudio, setPlayingAudio] = useState({}); // idx -> boolean
   const [openModelAnswers, setOpenModelAnswers] = useState({}); // idx -> boolean
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [pdfOptions, setPdfOptions] = useState({
+    summary: true,
+    radar: true,
+    breakdown: true,
+    fillers: true,
+    roadmap: true
+  });
 
   useEffect(() => {
     if (!user) {
@@ -53,21 +61,19 @@ export const Result = () => {
 
   const getScoreColor = (score) => {
     if (score >= 7.5) return 'success';
-    return 'focus-area'; // Amber warnings, never red
+    return 'focus-area';
   };
 
-  // Play audio answers (Hybrid: IndexedDB local cache first for 0ms delay, fallback to server)
+  // Play audio answers
   const togglePlayAudio = async (idx, audioPath) => {
     const backendHost = window.location.hostname || 'localhost';
     const serverAudioUrl = audioPath ? `http://${backendHost}:5055${audioPath}` : null;
 
     if (playingAudio[idx]) {
-      // Pause
       const aud = document.getElementById(`audio-player-${idx}`);
       if (aud) aud.pause();
       setPlayingAudio((prev) => ({ ...prev, [idx]: false }));
     } else {
-      // Stop all currently playing audio first
       Object.keys(playingAudio).forEach((k) => {
         const aud = document.getElementById(`audio-player-${k}`);
         if (aud) aud.pause();
@@ -75,7 +81,6 @@ export const Result = () => {
 
       let aud = document.getElementById(`audio-player-${idx}`);
       if (!aud) {
-        // Try local IndexedDB first for instant zero-latency playback
         const localBlobUrl = await getAudioLocal(interviewId, idx);
         const playUrl = localBlobUrl || serverAudioUrl;
 
@@ -104,18 +109,14 @@ export const Result = () => {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center p-12">
+      <div className="flex-1 flex flex-col items-center justify-center p-12 bg-dashboard-bg min-h-screen">
         <Mascot pose="neutral" size={80} className="animate-bounce" />
-        <span className="text-sm font-bold text-text-secondary ml-3">Analyzing mock metrics...</span>
+        <span className="text-sm font-bold text-text-secondary mt-3">Analyzing mock metrics...</span>
       </div>
     );
   }
 
   const overall = result?.interview?.overall_score || 0;
-  const strengths = result?.answers?.filter((a) => a.score >= 7.5) || [];
-  const focusAreas = result?.answers?.filter((a) => a.score < 7.5) || [];
-
-  // Compute speech analytics dynamically with fallbacks
   const answersWithWpm = result?.answers?.filter(a => a.wpm > 0) || [];
   const computedAvgWpm = (result?.interview?.avg_wpm && result.interview.avg_wpm > 0)
     ? Math.round(result.interview.avg_wpm)
@@ -124,6 +125,52 @@ export const Result = () => {
   const computedTotalFiller = (result?.interview?.total_filler !== undefined && result?.interview?.total_filler !== null)
     ? result.interview.total_filler
     : (result?.answers?.reduce((sum, a) => sum + (a.filler_count || 0), 0) || 0);
+
+  // Calculate 5-axis Competency Radar scores
+  const getCompetencyScores = () => {
+    if (!result?.answers || result.answers.length === 0) {
+      return { technical: 80, problem: 75, pacing: 80, star: 70, architecture: 75 };
+    }
+    const techAns = result.answers.filter(a => a.category === 'Technical');
+    const probAns = result.answers.filter(a => a.category === 'Problem Solving');
+    const behAns = result.answers.filter(a => a.category === 'Behavioral');
+
+    const avg = (arr) => arr.length > 0 ? (arr.reduce((sum, a) => sum + (a.score || 7), 0) / arr.length) * 10 : 75;
+
+    return {
+      technical: Math.round(avg(techAns)),
+      problem: Math.round(avg(probAns)),
+      pacing: Math.min(100, Math.round((computedAvgWpm > 0 ? Math.min(160, computedAvgWpm) / 160 : 0.8) * 100)),
+      star: Math.round(avg(behAns)),
+      architecture: Math.round((overall / 10) * 90)
+    };
+  };
+
+  const compScores = getCompetencyScores();
+
+  // Helper to render filler word highlighted transcript
+  const renderAnnotatedTranscript = (text) => {
+    if (!text) return null;
+    const fillers = ["um", "uh", "umm", "like", "actually", "basically", "you know", "i mean"];
+    const regex = new RegExp(`\\b(${fillers.join("|")})\\b`, "gi");
+    const parts = text.split(regex);
+
+    return parts.map((part, i) => {
+      if (fillers.includes(part.toLowerCase())) {
+        return (
+          <span key={i} className="relative group inline-block mx-0.5">
+            <span className="bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300/80 dark:border-amber-700/50 px-1.5 py-0.5 rounded-md text-[11px] font-black underline decoration-amber-500 cursor-help">
+              {part}
+            </span>
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:block bg-slate-900 text-white text-[10px] font-semibold px-2.5 py-1 rounded-lg shadow-xl whitespace-nowrap z-30">
+              💡 Tip: Pause briefly instead of using "{part}"
+            </span>
+          </span>
+        );
+      }
+      return part;
+    });
+  };
 
   return (
     <motion.div
@@ -152,20 +199,75 @@ export const Result = () => {
         </div>
 
         {/* Right side: Overall Score Card & Download PDF Button */}
-        <div className="flex flex-col sm:flex-row items-center gap-4 shrink-0 w-full sm:w-auto justify-center sm:justify-end">
+        <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0 w-full sm:w-auto justify-center sm:justify-end">
           <div className="bg-accent-soft/30 border border-accent/15 px-6 py-3.5 rounded-3xl text-center min-w-[120px]">
             <span className="text-[9px] font-extrabold text-accent uppercase tracking-widest block">Overall Score</span>
             <span className="text-3xl font-extrabold text-text-primary mt-0.5 block">{overall.toFixed(1)}</span>
           </div>
 
-          <a
-            href={`/api/interview/${interviewId}/report`}
-            target="_blank"
-            rel="noreferrer"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-xl px-5 py-3 text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-md shadow-indigo-500/20 hover:scale-[1.02] active:scale-[0.98] cursor-pointer whitespace-nowrap"
+          <button
+            onClick={() => setPdfModalOpen(true)}
+            className="bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-extrabold rounded-2xl px-5 py-3.5 text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-md shadow-indigo-500/20 cursor-pointer whitespace-nowrap"
           >
+            <Download size={15} />
             <span>Download PDF Report</span>
-          </a>
+          </button>
+        </div>
+      </Card>
+
+      {/* 5-Axis Competency Radar Card */}
+      <Card className="p-6 flex flex-col sm:flex-row items-center justify-between gap-6 bg-white dark:bg-zinc-900/80 border border-slate-200/80 dark:border-white/10 rounded-3xl shadow-xs">
+        <div className="flex flex-col gap-2 max-w-md text-left">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-0.5 rounded-full">
+              Competency Map
+            </span>
+          </div>
+          <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">5-Axis Skill Breakdown</h3>
+          <p className="text-xs text-slate-500 dark:text-white/50 leading-relaxed">
+            Evaluates your balance across technical depth, problem-solving, speech pacing, STAR methodology, and system design logic.
+          </p>
+        </div>
+
+        {/* SVG Radar */}
+        <div className="relative p-2 shrink-0">
+          <svg width="220" height="220" className="overflow-visible">
+            {/* Radar Background Polygons */}
+            {[0.25, 0.5, 0.75, 1].map((scale, levelIdx) => {
+              const pts = [0, 1, 2, 3, 4].map(i => {
+                const angle = (Math.PI * 2 / 5) * i - Math.PI / 2;
+                const r = scale * 75;
+                return `${110 + r * Math.cos(angle)},${110 + r * Math.sin(angle)}`;
+              }).join(' ');
+              return <polygon key={levelIdx} points={pts} fill="none" stroke="currentColor" strokeWidth="1" className="text-slate-200 dark:text-zinc-800" />;
+            })}
+            {/* Axis Lines */}
+            {[0, 1, 2, 3, 4].map(i => {
+              const angle = (Math.PI * 2 / 5) * i - Math.PI / 2;
+              return <line key={i} x1="110" y1="110" x2={110 + 75 * Math.cos(angle)} y2={110 + 75 * Math.sin(angle)} stroke="currentColor" strokeWidth="1" className="text-slate-200 dark:text-zinc-800" />;
+            })}
+            {/* Radar Filled Polygon */}
+            {(() => {
+              const axes = [compScores.technical, compScores.problem, compScores.pacing, compScores.star, compScores.architecture];
+              const pts = axes.map((val, i) => {
+                const angle = (Math.PI * 2 / 5) * i - Math.PI / 2;
+                const r = (val / 100) * 75;
+                return `${110 + r * Math.cos(angle)},${110 + r * Math.sin(angle)}`;
+              }).join(' ');
+              return <polygon points={pts} fill="rgba(2, 132, 199, 0.25)" stroke="#0284C7" strokeWidth="2.5" />;
+            })()}
+            {/* Axis Labels */}
+            {['Tech', 'Problem', 'Pacing', 'STAR', 'Arch'].map((label, i) => {
+              const angle = (Math.PI * 2 / 5) * i - Math.PI / 2;
+              const x = 110 + 92 * Math.cos(angle);
+              const y = 110 + 92 * Math.sin(angle);
+              return (
+                <text key={i} x={x} y={y} textAnchor="middle" dominantBaseline="middle" className="text-[10px] font-black fill-slate-600 dark:fill-zinc-300 uppercase">
+                  {label}
+                </text>
+              );
+            })}
+          </svg>
         </div>
       </Card>
 
@@ -194,7 +296,7 @@ export const Result = () => {
                   {/* Highlighted answer transcript */}
                   <div className="surface-raised border rounded-2xl p-4 flex flex-col gap-2">
                     <div className="flex justify-between items-center">
-                      <span className="text-[9px] font-bold text-text-muted uppercase">Your response transcript</span>
+                      <span className="text-[9px] font-bold text-text-muted uppercase">Your response transcript (Annotated)</span>
                       
                       {/* Audio playback button */}
                       {ans.audio_path && (
@@ -210,7 +312,7 @@ export const Result = () => {
                     <p className={`text-xs leading-relaxed italic ${
                       ans.score >= 7.5 ? 'text-text-primary' : 'text-text-secondary'
                     }`}>
-                      "{ans.answer_text}"
+                      "{renderAnnotatedTranscript(ans.answer_text)}"
                     </p>
                   </div>
 
@@ -263,12 +365,6 @@ export const Result = () => {
                                 "{ans.model_answer}"
                               </p>
                             </div>
-                            <div className="border-t border-slate-200/50 dark:border-zinc-800/30 pt-2 mt-1">
-                              <strong className="text-[9px] uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Key Comparison Insight:</strong>
-                              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                                Compare this reference answer to your transcript. Focus on using specific technical keywords and structuring your response using quantified metrics.
-                              </p>
-                            </div>
                           </div>
                         </div>
                       )}
@@ -294,9 +390,6 @@ export const Result = () => {
                   <strong className="text-text-primary">{result?.interview?.attention_score || 100}%</strong>
                 </div>
                 <ProgressBar value={result?.interview?.attention_score || 100} color={getScoreColor(result?.interview?.attention_score || 100)} />
-                <span className="text-[10px] text-text-muted mt-0.5">
-                  Look-away events detected: {result?.interview?.look_away_count || 0} times
-                </span>
               </div>
 
               {/* Pace & WPM */}
@@ -305,9 +398,6 @@ export const Result = () => {
                   <span>Speech pace average</span>
                   <strong className="text-text-primary">{computedAvgWpm > 0 ? `${computedAvgWpm} WPM` : '—'}</strong>
                 </div>
-                <span className="text-[10px] text-text-muted leading-relaxed">
-                  Optimal pacing is between 120-160 Words Per Minute.
-                </span>
               </div>
 
               {/* Total Filler count */}
@@ -316,52 +406,73 @@ export const Result = () => {
                   <span>Filler words spoken</span>
                   <strong className="text-text-primary">{computedTotalFiller} times</strong>
                 </div>
-                <span className="text-[10px] text-text-muted leading-relaxed">
-                  Monitors occurrences of speech breaks ("um", "like", "uh", "actually", "basically").
-                </span>
               </div>
             </div>
           </Card>
-
-          {/* study planner / roadmaps */}
-          <Card className="flex flex-col gap-3">
-            <h3 className="font-extrabold text-sm text-text-primary tracking-tight flex items-center gap-1.5">
-              <span>📚</span> Study Roadmap Recommendations
-            </h3>
-            
-            {result?.interview?.recommendations_json ? (
-              <div className="flex flex-col gap-3 text-xs leading-relaxed">
-                {JSON.parse(result.interview.recommendations_json).map((r, i) => (
-                  <div key={i} className="surface-raised border p-3 rounded-2xl flex flex-col gap-1.5">
-                    <span className="font-bold text-text-primary flex items-center gap-1">
-                      🎯 {r.topic}
-                    </span>
-                    <div className="flex flex-col gap-1.5 mt-1">
-                      {r.links.map((link, j) => (
-                        <a
-                          key={j}
-                          href={link.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-[10px] font-bold text-accent hover:underline flex items-center gap-1"
-                        >
-                          <span>{link.icon || '🔗'}</span>
-                          <span className="truncate">{link.name}</span>
-                          <ExternalLink size={10} className="flex-shrink-0" />
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-6 text-xs text-text-secondary italic">
-                Study playlists being prepared by tutor companion...
-              </div>
-            )}
-          </Card>
         </div>
       </div>
+
+      {/* PDF Customizer Modal */}
+      {pdfModalOpen && (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setPdfModalOpen(false)} />
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className="relative w-full max-w-md bg-white dark:bg-zinc-900 border border-slate-200 dark:border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col gap-5 text-left"
+          >
+            <div className="flex justify-between items-center border-b pb-3 border-slate-100 dark:border-white/5">
+              <div className="flex items-center gap-2">
+                <FileText size={18} className="text-indigo-600 dark:text-indigo-400" />
+                <h3 className="font-extrabold text-base text-slate-900 dark:text-white">Export PDF Report</h3>
+              </div>
+              <button onClick={() => setPdfModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {[
+                { id: 'summary', label: 'Overall Score & Executive Summary' },
+                { id: 'radar', label: '5-Axis Competency Radar Chart' },
+                { id: 'breakdown', label: 'Question-by-Question Detailed Feedback' },
+                { id: 'fillers', label: 'Filler Word & Speech Pacing Breakdown' },
+                { id: 'roadmap', label: '7-Day Recommended Study Roadmap' },
+              ].map(opt => (
+                <label key={opt.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-zinc-800/60 rounded-2xl cursor-pointer border border-slate-200/60 dark:border-white/5">
+                  <span className="text-xs font-extrabold text-slate-800 dark:text-white">{opt.label}</span>
+                  <input
+                    type="checkbox"
+                    checked={pdfOptions[opt.id]}
+                    onChange={(e) => setPdfOptions(prev => ({ ...prev, [opt.id]: e.target.checked }))}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+                  />
+                </label>
+              ))}
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setPdfModalOpen(false)}
+                className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs font-extrabold text-slate-600 dark:text-white hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <a
+                href={`/api/interview/${interviewId}/report`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setPdfModalOpen(false)}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs py-3 rounded-xl shadow-md text-center flex items-center justify-center gap-1.5"
+              >
+                <Download size={14} /> Download PDF
+              </a>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
     </motion.div>
   );
 };

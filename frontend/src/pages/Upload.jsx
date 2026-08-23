@@ -466,12 +466,22 @@ export const Upload = () => {
                           </ul>
                         </div>
                         <div>
-                          <strong className="text-xs text-rose-600 dark:text-rose-400 font-bold uppercase tracking-wider block mb-2">Missing Skills</strong>
+                          <strong className="text-xs text-rose-600 dark:text-rose-400 font-bold uppercase tracking-wider block mb-2">Missing Skills (Click to Copy)</strong>
                           <div className="flex flex-wrap gap-1.5">
                             {gapResult.missing_skills?.map((skill, i) => (
-                              <span key={i} className="text-xs font-medium bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/50 px-2.5 py-0.5 rounded-md">
-                                {skill}
-                              </span>
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(skill);
+                                  showToast(`Copied "${skill}" to clipboard!`, "info");
+                                }}
+                                className="text-xs font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 border border-rose-200/80 dark:border-rose-800/60 px-2.5 py-1 rounded-lg cursor-pointer transition-all flex items-center gap-1 active:scale-95"
+                                title="Click to copy skill keyword"
+                              >
+                                <span>{skill}</span>
+                                <span className="text-[9px] opacity-70">📋</span>
+                              </button>
                             ))}
                           </div>
                         </div>
