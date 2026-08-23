@@ -43,7 +43,7 @@ async function callGroqAPI(prompt, systemInstruction = "", jsonMode = false, fil
   messages.push({ role: "user", content: textContent });
 
   const body = {
-    model: "llama-3.3-70b-versatile", // standard high-quality reasoning and coding model in Groq Cloud
+    model: "llama-3.1-8b-instant", // standard high-quality reasoning and coding model in Groq Cloud
     messages,
     temperature
   };

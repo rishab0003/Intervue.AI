@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { LogOut, Sun, Moon, Menu, X, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import InterviewLaunchModal from './InterviewLaunchModal';
 
 export const Navbar = () => {
   const { user, logout, showToast, darkMode, toggleDarkMode } = useApp();
@@ -10,6 +11,7 @@ export const Navbar = () => {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isLiveSession, setIsLiveSession] = useState(false);
+  const [launchModalOpen, setLaunchModalOpen] = useState(false);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -44,7 +46,6 @@ export const Navbar = () => {
   const navItems = [
     { path: '/dashboard', label: 'Dashboard' },
     { path: '/courses', label: 'Courses' },
-    { path: '/interview', label: 'Interview' },
     { path: '/history', label: 'Sessions' },
     { path: '/settings', label: 'Setup' },
     { path: '/upload', label: 'Resume' },
@@ -82,6 +83,17 @@ export const Navbar = () => {
               {item.label}
             </Link>
           ))}
+          {/* Interview button opens launch modal */}
+          <button
+            onClick={() => setLaunchModalOpen(true)}
+            className={`px-4 py-2 rounded-full text-xs sm:text-sm font-extrabold tracking-wider transition-all backdrop-blur-md cursor-pointer ${
+              location.pathname === '/interview'
+                ? 'text-indigo-600 bg-indigo-600/10 border border-indigo-500/20 dark:text-white dark:bg-white/15 dark:border-white/25 shadow-xs scale-105'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50 dark:text-white/70 dark:hover:text-white dark:hover:bg-white/10'
+            }`}
+          >
+            Interview
+          </button>
         </nav>
 
         {/* Right Desktop Actions */}
@@ -158,6 +170,17 @@ export const Navbar = () => {
                   </Link>
                 );
               })}
+              {/* Interview button in mobile menu */}
+              <button
+                onClick={() => { setMobileMenuOpen(false); setLaunchModalOpen(true); }}
+                className={`px-3.5 py-2.5 rounded-2xl text-xs font-extrabold uppercase tracking-wider transition-colors backdrop-blur-md cursor-pointer text-left ${
+                  location.pathname === '/interview'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'bg-white/50 dark:bg-white/[0.06] text-slate-700 dark:text-slate-200 hover:bg-white/80'
+                }`}
+              >
+                Interview
+              </button>
             </div>
 
             <div className="flex items-center justify-between pt-1">
@@ -183,6 +206,9 @@ export const Navbar = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Interview Launch Modal */}
+      <InterviewLaunchModal isOpen={launchModalOpen} onClose={() => setLaunchModalOpen(false)} />
     </header>
   );
 };

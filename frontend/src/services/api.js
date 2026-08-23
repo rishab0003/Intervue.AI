@@ -64,10 +64,16 @@ export const api = {
       body: JSON.stringify({ user_id, resume_id })
     }),
 
-  startInterview: (user_id, resume_id = null) =>
+  startInterview: (user_id, resume_id = null, mode = 'basic', role = null, persona = 'mentor') =>
     apiFetch("/interview/start", {
       method: "POST",
-      body: JSON.stringify({ user_id, resume_id })
+      body: JSON.stringify({ user_id, resume_id, mode, role, persona })
+    }),
+
+  conversationTurn: (interview_id, conversation_history, user_answer, exchange_count) =>
+    apiFetch("/interview/conversation-turn", {
+      method: "POST",
+      body: JSON.stringify({ interview_id, conversation_history, user_answer, exchange_count })
     }),
 
   saveAnswer: (formData) =>

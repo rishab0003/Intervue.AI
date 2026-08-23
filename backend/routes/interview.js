@@ -58,6 +58,9 @@ router.get("/stats/:user_id", auth, checkUserOwnership, ctrl.getDashboardStats);
 // Perform JD to Resume Gap Analysis
 router.post("/gap-analysis", auth, ctrl.analyzeGap);
 
+// One-on-One conversation turn
+router.post("/conversation-turn", auth, ctrl.conversationTurn);
+
 // Generate PDF Report download
 const pdfCtrl = require("../controllers/pdfReportController");
 router.get("/:id/report", auth, pdfCtrl.generatePdfReport);

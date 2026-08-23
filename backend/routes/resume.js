@@ -34,7 +34,7 @@ const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GE
 async function analyzeResumeWithGemini(fileBuffer, mimeType) {
   if (genAI) {
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
       const resumeFilePart = {
         inlineData: {
@@ -403,7 +403,7 @@ async function analyzeAtsScoreWithGemini(resumeText, parsedJson) {
     };
   }
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const prompt = `Analyze the following parsed resume content and raw text for an Applicant Tracking System (ATS) optimization audit.
 Parsed Data: ${JSON.stringify(parsedJson)}
 Raw Resume Text: ${resumeText}

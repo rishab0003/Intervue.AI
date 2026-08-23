@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { api } from '../services/api';
 import Mascot from '../components/Mascot';
@@ -14,6 +14,12 @@ import { saveAudioLocal } from '../utils/indexedDB';
 export const Interview = () => {
   const { user, showToast } = useApp();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Interview mode from URL params
+  const interviewMode = searchParams.get('mode') || 'basic'; // 'basic' | 'conversation'
+  const interviewRole = searchParams.get('role') || 'Software Engineer';
+  const interviewPersona = searchParams.get('persona') || 'mentor';
 
   // State: 'lobby' | 'live' | 'submitting'
   const [phase, setPhase] = useState('lobby');
@@ -48,6 +54,12 @@ export const Interview = () => {
   const [secondsLeft, setSecondsLeft] = useState(60);
   const [interviewId, setInterviewId] = useState(null);
   const [answersList, setAnswersList] = useState([]);
+
+  // One-on-One Conversation Mode State
+  const [conversationHistory, setConversationHistory] = useState([]);
+  const [currentAIMessage, setCurrentAIMessage] = useState('');
+  const [exchangeCount, setExchangeCount] = useState(0);
+  const [isConvDone, setIsConvDone] = useState(false);
 
   // Media Recording & Speech Recognition
   const mediaRecorderRef = useRef(null);
@@ -409,7 +421,7 @@ export const Interview = () => {
 
     try {
       const resumeId = localStorage.getItem("resume_id") || null;
-      const startRes = await api.startInterview(user.user_id, resumeId);
+      const startRes = await api.startInterview(user.user_id, resumeId, interviewMode, interviewRole, interviewPersona);
 
       if (startRes.error || !startRes.data) {
         showToast(startRes.error || "Failed to start mock session", "error");
@@ -419,7 +431,6 @@ export const Interview = () => {
         return;
       }
 
-      setQuestions(startRes.data.questions || []);
       setInterviewId(startRes.data.interview_id);
       setCurrentIdx(0);
 
@@ -436,9 +447,21 @@ export const Interview = () => {
         initFaceMesh();
       }, 500);
 
-      setTimeout(() => {
-        startQuestionRound(0, startRes.data.questions);
-      }, 800);
+      if (interviewMode === 'conversation') {
+        // One-on-One mode: set opening question from AI
+        const openingQ = startRes.data.opening_question;
+        setCurrentAIMessage(openingQ);
+        setConversationHistory([{ role: 'interviewer', content: openingQ }]);
+        setTimeout(() => {
+          speakText(openingQ, () => startRecording());
+        }, 800);
+      } else {
+        // Basic Mock mode
+        setQuestions(startRes.data.questions || []);
+        setTimeout(() => {
+          startQuestionRound(0, startRes.data.questions);
+        }, 800);
+      }
 
     } catch (err) {
       showToast("Cannot initialize session streams", "error");
@@ -470,6 +493,63 @@ export const Interview = () => {
     window.speechSynthesis.speak(speech);
 
     startTimer();
+  };
+
+  // Generic TTS helper for conversation mode
+  const speakText = (text, onDone) => {
+    window.speechSynthesis.cancel();
+    const speech = new SpeechSynthesisUtterance(text);
+    utteranceRef.current = speech;
+    speech.onend = () => { if (onDone) onDone(); };
+    setOrbState('speaking');
+    window.speechSynthesis.speak(speech);
+  };
+
+  // Submit answer in One-on-One conversation mode
+  const handleConversationTurn = async () => {
+    if (!transcript.trim()) {
+      showToast("Please speak your answer before submitting.", "warning");
+      return;
+    }
+    stopTimer();
+    stopRecordingAndTranscribing();
+    setOrbState('thinking');
+
+    const userAnswer = transcript.trim();
+    const updatedHistory = [...conversationHistory, { role: 'candidate', content: userAnswer }];
+
+    try {
+      const { data, error } = await api.conversationTurn(interviewId, conversationHistory, userAnswer, exchangeCount);
+
+      if (error || !data) {
+        showToast(error || "AI response failed", "error");
+        setOrbState('idle');
+        return;
+      }
+
+      const newHistory = [...updatedHistory, { role: 'interviewer', content: data.response_text }];
+      setConversationHistory(newHistory);
+      setCurrentAIMessage(data.response_text);
+      setExchangeCount(data.exchange_count || exchangeCount + 1);
+      setTranscript('');
+
+      if (data.is_done) {
+        setIsConvDone(true);
+        speakText(data.response_text, () => {
+          showToast("Interview complete! Preparing your results... 🎉", "success");
+          setTimeout(() => handleFinishInterview(), 1500);
+        });
+      } else {
+        speakText(data.response_text, () => {
+          setOrbState('idle');
+          setTimeout(() => startRecording(), 300);
+        });
+      }
+    } catch (err) {
+      console.error("Conversation turn error:", err);
+      showToast("Failed to process your answer", "error");
+      setOrbState('idle');
+    }
   };
 
   const startTimer = () => {
@@ -871,83 +951,195 @@ export const Interview = () => {
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             className="flex flex-col gap-6 w-full"
           >
-            {/* Header: Progress tag and Timer */}
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-extrabold uppercase tracking-widest text-accent">
-                Question {currentIdx + 1} of {questions.length} {questions[currentIdx]?.isFollowUp && '• Follow-Up'}
-              </span>
-
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-text-muted uppercase">Pacing Timer</span>
-                <span className={`text-sm font-extrabold px-3 py-1 rounded-full ${secondsLeft < 15 ? 'badge-warning' : 'bg-accent-soft text-accent'}`}>
-                  {secondsLeft}s
-                </span>
-              </div>
-            </div>
-
-            {/* Question Bubble */}
-            <div className="surface border rounded-[32px] p-8 sm:p-10 shadow-sm flex items-start gap-6">
-              <div className="text-left flex flex-col gap-2">
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-accent bg-accent-soft px-3 py-1 rounded-full w-fit">Interviewer</span>
-                <h3 className="font-extrabold text-base sm:text-lg text-text-primary tracking-tight mt-1 leading-relaxed">
-                  {questions[currentIdx]?.text || 'Loading mock question...'}
-                </h3>
-              </div>
-            </div>
-
-            {/* Centerpiece Voice Orb visualizer */}
-            <div className="my-8 flex justify-center w-full">
-              <VoiceOrb state={orbState} />
-            </div>
-
-            {/* Transcript preview panel */}
-            <div className="surface border rounded-[32px] p-8 flex flex-col gap-4 min-h-[200px] text-left">
-              <div className="flex justify-between items-center border-b pb-3.5" style={{ borderColor: 'var(--color-surface-border)' }}>
-                <span className="text-[11px] font-extrabold text-text-muted uppercase tracking-wider">Live Transcript</span>
-                {orbState === 'listening' && (
-                  <span className="flex h-2 w-2 relative">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
+            {/* ==================== ONE-ON-ONE CONVERSATION MODE ==================== */}
+            {interviewMode === 'conversation' ? (
+              <>
+                {/* Conversation Header */}
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-extrabold uppercase tracking-widest text-violet-500 bg-violet-100 dark:bg-violet-900/30 px-2.5 py-1 rounded-full">
+                      🧠 One-on-One Deep Dive
+                    </span>
+                    <span className="text-[10px] text-text-muted font-medium">
+                      {interviewRole} · {interviewPersona === 'mentor' ? '👔 Friendly' : interviewPersona === 'engineer' ? '🧑‍💻 Technical' : '😤 Stress'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold text-text-muted">
+                    Exchange {exchangeCount} / 12
                   </span>
+                </div>
+
+                {/* Conversation Chat Thread */}
+                <div className="surface border rounded-3xl p-5 flex flex-col gap-3 max-h-64 overflow-y-auto scrollbar-thin">
+                  {conversationHistory.map((msg, i) => (
+                    <div key={i} className={`flex gap-3 ${msg.role === 'candidate' ? 'flex-row-reverse' : 'flex-row'}`}>
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-extrabold shrink-0 ${
+                        msg.role === 'interviewer' ? 'bg-violet-600 text-white' : 'bg-indigo-600 text-white'
+                      }`}>
+                        {msg.role === 'interviewer' ? 'AI' : 'Me'}
+                      </div>
+                      <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed ${
+                        msg.role === 'interviewer'
+                          ? 'bg-slate-100 dark:bg-white/[0.06] text-slate-800 dark:text-white rounded-tl-none'
+                          : 'bg-indigo-600 text-white rounded-tr-none'
+                      }`}>
+                        {msg.content}
+                      </div>
+                    </div>
+                  ))}
+                  {orbState === 'thinking' && (
+                    <div className="flex gap-3">
+                      <div className="w-7 h-7 rounded-full bg-violet-600 flex items-center justify-center text-xs font-extrabold text-white shrink-0">AI</div>
+                      <div className="bg-slate-100 dark:bg-white/[0.06] px-4 py-2.5 rounded-2xl rounded-tl-none flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Current AI message highlight */}
+                {currentAIMessage && orbState !== 'thinking' && (
+                  <div className="surface border border-violet-200 dark:border-violet-800/50 rounded-3xl p-6 flex items-start gap-4">
+                    <div className="w-9 h-9 rounded-full bg-violet-600 flex items-center justify-center text-white font-extrabold text-sm shrink-0 shadow-md shadow-violet-500/30">AI</div>
+                    <div>
+                      <span className="text-[9px] font-extrabold uppercase tracking-widest text-violet-500 block mb-1">Interviewer</span>
+                      <p className="font-bold text-sm text-text-primary leading-relaxed">{currentAIMessage}</p>
+                    </div>
+                    {orbState === 'speaking' && (
+                      <div className="ml-auto flex items-center gap-1 self-start">
+                        {[0,1,2].map(i => (
+                          <div key={i} className="w-1 bg-violet-500 rounded-full animate-[bounce_0.8s_ease-in-out_infinite]"
+                            style={{ height: `${12 + i * 4}px`, animationDelay: `${i * 0.15}s` }} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
-              </div>
-              <p className="text-sm sm:text-base text-text-secondary leading-loose font-medium italic">
-                {transcript || 'Start speaking to record response...'}
-              </p>
-            </div>
 
-            {/* Hint Box (if triggered) */}
-            {hintMessage && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="alert-warning rounded-2xl p-4 text-xs font-bold leading-relaxed"
-              >
-                💡 Hint: {hintMessage}
-              </motion.div>
+                {/* Voice Orb */}
+                <div className="my-4 flex justify-center w-full">
+                  <VoiceOrb state={orbState} />
+                </div>
+
+                {/* Live Transcript */}
+                <div className="surface border rounded-3xl p-6 flex flex-col gap-3 min-h-[120px] text-left">
+                  <div className="flex justify-between items-center border-b pb-3" style={{ borderColor: 'var(--color-surface-border)' }}>
+                    <span className="text-[11px] font-extrabold text-text-muted uppercase tracking-wider">Your Response</span>
+                    {orbState === 'listening' && (
+                      <span className="flex h-2 w-2 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-text-secondary leading-loose font-medium italic">
+                    {transcript || (orbState === 'speaking' ? 'Interviewer is speaking...' : orbState === 'thinking' ? 'Processing your answer...' : 'Speak your answer...')}
+                  </p>
+                </div>
+
+                {/* Controls */}
+                <div className="flex flex-wrap justify-between items-center gap-4 border-t pt-5" style={{ borderColor: 'var(--color-surface-border)' }}>
+                  <Button variant="ghost" onClick={handleTryAgain} className="flex items-center gap-1.5 px-4 py-2 text-xs" disabled={orbState === 'thinking' || orbState === 'speaking'}>
+                    <RotateCcw size={12} /> Restart Answer
+                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="ghost" onClick={handleFinishInterview} className="px-4 py-2 text-xs text-text-muted hover:text-accent">
+                      End Early
+                    </Button>
+                    <Button
+                      onClick={handleConversationTurn}
+                      disabled={orbState === 'thinking' || orbState === 'speaking' || !transcript.trim() || isConvDone}
+                      className="px-6 py-2 bg-violet-600 hover:bg-violet-700"
+                    >
+                      <span>{isConvDone ? 'Wrapping up...' : 'Send Answer →'}</span>
+                    </Button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* ==================== BASIC MOCK MODE (Existing) ==================== */
+              <>
+                {/* Header: Progress tag and Timer */}
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-extrabold uppercase tracking-widest text-accent">
+                    Question {currentIdx + 1} of {questions.length} {questions[currentIdx]?.isFollowUp && '• Follow-Up'}
+                  </span>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-text-muted uppercase">Pacing Timer</span>
+                    <span className={`text-sm font-extrabold px-3 py-1 rounded-full ${secondsLeft < 15 ? 'badge-warning' : 'bg-accent-soft text-accent'}`}>
+                      {secondsLeft}s
+                    </span>
+                  </div>
+                </div>
+
+                {/* Question Bubble */}
+                <div className="surface border rounded-[32px] p-8 sm:p-10 shadow-sm flex items-start gap-6">
+                  <div className="text-left flex flex-col gap-2">
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-accent bg-accent-soft px-3 py-1 rounded-full w-fit">Interviewer</span>
+                    <h3 className="font-extrabold text-base sm:text-lg text-text-primary tracking-tight mt-1 leading-relaxed">
+                      {questions[currentIdx]?.text || 'Loading mock question...'}
+                    </h3>
+                  </div>
+                </div>
+
+                {/* Centerpiece Voice Orb visualizer */}
+                <div className="my-8 flex justify-center w-full">
+                  <VoiceOrb state={orbState} />
+                </div>
+
+                {/* Transcript preview panel */}
+                <div className="surface border rounded-[32px] p-8 flex flex-col gap-4 min-h-[200px] text-left">
+                  <div className="flex justify-between items-center border-b pb-3.5" style={{ borderColor: 'var(--color-surface-border)' }}>
+                    <span className="text-[11px] font-extrabold text-text-muted uppercase tracking-wider">Live Transcript</span>
+                    {orbState === 'listening' && (
+                      <span className="flex h-2 w-2 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm sm:text-base text-text-secondary leading-loose font-medium italic">
+                    {transcript || 'Start speaking to record response...'}
+                  </p>
+                </div>
+
+                {/* Hint Box (if triggered) */}
+                {hintMessage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="alert-warning rounded-2xl p-4 text-xs font-bold leading-relaxed"
+                  >
+                    💡 Hint: {hintMessage}
+                  </motion.div>
+                )}
+
+                {/* Control Row actions */}
+                <div className="flex flex-wrap justify-between items-center gap-4 border-t pt-5" style={{ borderColor: 'var(--color-surface-border)' }}>
+                  <div className="flex gap-2">
+                    <Button variant="secondary" onClick={handleShowHint} className="flex items-center gap-1.5 px-4 py-2">
+                      <span>Show Hint</span>
+                    </Button>
+                    <Button variant="ghost" onClick={handleTryAgain} className="flex items-center gap-1.5 px-4 py-2 text-xs">
+                      <RotateCcw size={12} />
+                      <span>Restart Answer</span>
+                    </Button>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button variant="ghost" onClick={handleFinishInterview} className="px-4 py-2 text-xs text-text-muted hover:text-accent">
+                      End Practice Early
+                    </Button>
+                    <Button onClick={handleNextQuestion} disabled={orbState === 'thinking'} className="px-5 py-2">
+                      <span>{currentIdx === questions.length - 1 ? 'Finish Interview' : 'Next Question'}</span>
+                    </Button>
+                  </div>
+                </div>
+              </>
             )}
-
-            {/* Control Row actions */}
-            <div className="flex flex-wrap justify-between items-center gap-4 border-t pt-5" style={{ borderColor: 'var(--color-surface-border)' }}>
-              <div className="flex gap-2">
-                <Button variant="secondary" onClick={handleShowHint} className="flex items-center gap-1.5 px-4 py-2">
-                  <span>Show Hint</span>
-                </Button>
-                <Button variant="ghost" onClick={handleTryAgain} className="flex items-center gap-1.5 px-4 py-2 text-xs">
-                  <RotateCcw size={12} />
-                  <span>Restart Answer</span>
-                </Button>
-              </div>
-
-              <div className="flex gap-2">
-                <Button variant="ghost" onClick={handleFinishInterview} className="px-4 py-2 text-xs text-text-muted hover:text-accent">
-                  End Practice Early
-                </Button>
-                <Button onClick={handleNextQuestion} disabled={orbState === 'thinking'} className="px-5 py-2">
-                  <span>{currentIdx === questions.length - 1 ? 'Finish Interview' : 'Next Question'}</span>
-                </Button>
-              </div>
-            </div>
 
             {/* Hidden Video element for MediaPipe feed */}
             <video ref={liveVideoRef} autoPlay playsInline muted className="hidden" />

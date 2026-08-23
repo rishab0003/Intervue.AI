@@ -152,7 +152,7 @@ async function scoreAnswer(questionText, answerText, category) {
 
   if (genAI) {
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const prompt = `Assess this job interview candidate's answer to the question.
 Question: ${questionText}
 Category: ${category}
@@ -354,7 +354,7 @@ ${context}`;
 
   if (genAI) {
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: { temperature: 0.85 }
@@ -452,10 +452,53 @@ function generateQuestionsFromResumeFallback(resumeText, skills, targetCount = 1
 }
 
 /**
+ * Generate the opening question for a One-on-One conversation interview
+ */
+async function generateOpeningQuestion(role, persona, resumeText) {
+  const roleContext = role || "Software Engineer";
+  const resumeSnippet = resumeText ? resumeText.slice(0, 800) : "No resume provided.";
+
+  const personaInstructions = {
+    mentor: "You are a warm, friendly senior interviewer. Start with a welcoming, open-ended question.",
+    engineer: "You are a senior staff engineer. Start with a direct, technically-inclined opening.",
+    stress: "You are a tough, challenging interviewer. Start with a pointed question that tests confidence."
+  };
+  const personaHint = personaInstructions[persona] || personaInstructions.mentor;
+
+  const prompt = `${personaHint}
+The candidate is interviewing for a ${roleContext} role.
+Their resume summary: ${resumeSnippet}
+
+Generate exactly ONE opening interview question to start the conversation. Keep it natural, conversational, and under 30 words. Just the question text — no preamble, no labels.`;
+
+  if (genAI) {
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const result = await model.generateContent({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature: 0.9 } });
+      const text = result.response.text().trim().replace(/^["']|["']$/g, "");
+      if (text && text.length > 10) return text;
+    } catch (e) {
+      console.error("Gemini opening question error, trying Groq:", e);
+      if (process.env.GROQ_API_KEY || process.env.GROK_API_KEY) {
+        try {
+          const { callGroqAPI } = require("../utils/groq");
+          const text = await callGroqAPI(prompt, "You are a professional interviewer.", false, null, null, 0.9);
+          if (text && text.trim().length > 10) return text.trim().replace(/^["']|["']$/g, "");
+        } catch (errGroq) {
+          console.error("Groq opening question fallback failed:", errGroq);
+        }
+      }
+    }
+  }
+
+  return `Tell me about yourself and what draws you to the ${roleContext} role.`;
+}
+
+/**
  * START INTERVIEW SESSION
  */
 exports.startInterview = async (req, res) => {
-  const { user_id, resume_id } = req.body;
+  const { user_id, resume_id, mode = 'basic', role, persona = 'mentor' } = req.body;
 
   if (!user_id) {
     return res.status(400).json({ message: "user_id is required" });
@@ -484,6 +527,30 @@ exports.startInterview = async (req, res) => {
       }
     }
 
+    // === CONVERSATION MODE ===
+    if (mode === 'conversation') {
+      const modeTitle = `One-on-One ${role ? `(${role})` : ''} — ${new Date().toLocaleDateString()}`;
+      const openingQuestion = await generateOpeningQuestion(role, persona, resumeText);
+      const interview = await Interview.create({
+        user_id,
+        resume_id: resume_id || null,
+        title: modeTitle,
+        mode: 'conversation',
+        role: role || null,
+        persona,
+        total_questions: 0
+      });
+      return res.json({
+        interview_id: interview._id,
+        mode: 'conversation',
+        opening_question: openingQuestion,
+        role,
+        persona,
+        title: modeTitle
+      });
+    }
+
+    // === BASIC MOCK MODE ===
     let userSettings = null;
     try {
       const row = await UserSettings.findOne({ user_id });
@@ -512,17 +579,145 @@ exports.startInterview = async (req, res) => {
       user_id,
       resume_id: resume_id || null,
       title,
+      mode: 'basic',
       total_questions: questions.length
     });
 
     res.json({
       interview_id: interview._id,
+      mode: 'basic',
       questions,
       title
     });
   } catch (err) {
     console.error("Start interview error:", err);
     res.status(500).json({ message: "Failed to start interview session" });
+  }
+};
+
+/**
+ * CONVERSATION TURN — One-on-One AI conversation engine
+ */
+exports.conversationTurn = async (req, res) => {
+  const { interview_id, conversation_history, user_answer, exchange_count } = req.body;
+
+  if (!interview_id || !user_answer) {
+    return res.status(400).json({ message: "interview_id and user_answer are required" });
+  }
+
+  try {
+    const interview = await Interview.findById(interview_id);
+    if (!interview) return res.status(404).json({ message: "Interview not found" });
+
+    const role = interview.role || "Software Engineer";
+    const persona = interview.persona || "mentor";
+    const exchangeNum = parseInt(exchange_count) || 0;
+    const MAX_EXCHANGES = 12;
+
+    // Score the user's answer in the background
+    const lastQuestion = conversation_history?.length > 0
+      ? conversation_history.filter(m => m.role === 'interviewer').slice(-1)[0]?.content || ""
+      : "";
+    const { score, feedback, sub_scores } = await scoreAnswer(lastQuestion, user_answer, "Behavioral");
+
+    // Save to InterviewAnswer
+    const questionIndex = Math.floor(exchangeNum / 2);
+    const sub_scores_json = sub_scores ? JSON.stringify(sub_scores) : null;
+    const wordCount = user_answer.trim().split(/\s+/).filter(Boolean).length;
+    const estimatedDuration = Math.max(8, Math.round((wordCount / 130) * 60));
+    const wpm = wordCount > 0 && estimatedDuration > 0 ? Math.round((wordCount / estimatedDuration) * 60) : 0;
+    const cleanText = user_answer.toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, " ");
+    const fillerPatterns = [/\bum+\b/g, /\buh+\b/g, /\bumm+\b/g, /\blike\b/g, /\bactually\b/g, /\bbasically\b/g, /\byou know\b/g, /\bi mean\b/g];
+    let fillerCount = 0;
+    fillerPatterns.forEach(p => { const m = cleanText.match(p); if (m) fillerCount += m.length; });
+
+    await InterviewAnswer.findOneAndUpdate(
+      { interview_id, question_index: questionIndex },
+      { question_text: lastQuestion, category: "Behavioral", answer_text: user_answer, score, feedback, sub_scores_json, wpm, filler_count: fillerCount, duration_seconds: estimatedDuration },
+      { upsert: true }
+    );
+
+    // Build persona system prompt
+    const personaSystemPrompts = {
+      mentor: `You are Alex, a warm and encouraging senior interviewer conducting a real-time ${role} interview. You listen carefully, acknowledge good points, probe deeper on interesting answers, and redirect when needed. Keep responses under 40 words. Be conversational and human.`,
+      engineer: `You are Jordan, a staff engineer conducting a technical ${role} interview. You are direct, expect specifics, and follow up on vague technical claims. Keep responses under 40 words. No filler, just substance.`,
+      stress: `You are Sam, a notoriously tough interviewer for ${role} roles. You push back, challenge assumptions, and never let vague answers slide. Keep responses under 40 words. Maintain pressure but stay professional.`
+    };
+    const systemPrompt = personaSystemPrompts[persona] || personaSystemPrompts.mentor;
+
+    // Determine if we should wrap up
+    const shouldWrapUp = exchangeNum >= MAX_EXCHANGES - 2;
+
+    // Build the AI prompt with full conversation history
+    const historyText = (conversation_history || [])
+      .map(m => `${m.role === 'interviewer' ? 'Interviewer' : 'Candidate'}: ${m.content}`)
+      .join("\n");
+
+    const wrapUpInstruction = shouldWrapUp
+      ? "\nIMPORTANT: This is the final exchange. Thank the candidate and wrap up the interview naturally in 1-2 sentences. Set is_done to true."
+      : `\nDecide: should you follow up on their answer, probe a weak point, or transition to a new topic? Exchange ${exchangeNum + 1} of ${MAX_EXCHANGES}.`;
+
+    const prompt = `${systemPrompt}
+
+Full conversation so far:
+${historyText}
+Candidate (latest): ${user_answer}
+
+${wrapUpInstruction}
+
+Respond ONLY with a valid JSON object:
+{
+  "response_text": "your response as the interviewer (max 45 words)",
+  "is_done": false
+}
+No markdown, no explanation — just the JSON.`;
+
+    let aiResponse = { response_text: "Interesting! Can you give me a specific example of that?", is_done: false };
+
+    if (genAI) {
+      try {
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const result = await model.generateContent({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature: 0.85 } });
+        const text = result.response.text().replace(/```json/gi, "").replace(/```/gi, "").trim();
+        const parsed = JSON.parse(text);
+        if (parsed.response_text) aiResponse = parsed;
+      } catch (e) {
+        console.error("Gemini conversation turn error:", e);
+        if (process.env.GROQ_API_KEY || process.env.GROK_API_KEY) {
+          try {
+            const { callGroqAPI } = require("../utils/groq");
+            const text = await callGroqAPI(prompt, systemPrompt, true, null, null, 0.85);
+            const parsed = JSON.parse(text);
+            if (parsed.response_text) aiResponse = parsed;
+          } catch (errGroq) {
+            console.error("Groq conversation turn fallback failed:", errGroq);
+          }
+        }
+      }
+    }
+
+    if (shouldWrapUp) aiResponse.is_done = true;
+
+    // Update conversation_json in Interview document
+    const updatedHistory = [
+      ...(conversation_history || []),
+      { role: 'candidate', content: user_answer },
+      { role: 'interviewer', content: aiResponse.response_text }
+    ];
+    await Interview.findByIdAndUpdate(interview_id, {
+      conversation_json: JSON.stringify(updatedHistory),
+      total_questions: questionIndex + 1
+    });
+
+    res.json({
+      ...aiResponse,
+      score,
+      feedback,
+      exchange_count: exchangeNum + 1
+    });
+  } catch (err) {
+    console.error("Conversation turn error:", err);
+    res.status(500).json({ message: "Failed to process conversation turn" });
   }
 };
 
@@ -542,25 +737,25 @@ exports.saveAnswer = async (req, res) => {
 
     const audio_path = req.file ? `/uploads/recordings/${req.file.filename}` : null;
 
-    const cleanText = (answer_text || "").toLowerCase();
-    const fillerWords = ["um", "uh", "like", "actually", "you know"];
+    // Improved filler word detection with expanded patterns
+    const cleanText = (answer_text || "").toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, " ");
+    const fillerPatterns = [
+      /\bum+\b/g, /\buh+\b/g, /\bumm+\b/g, /\buhh+\b/g,
+      /\blike\b/g, /\bactually\b/g, /\bbasically\b/g,
+      /\byou know\b/g, /\bi mean\b/g, /\bsort of\b/g,
+      /\bkind of\b/g, /\bhonestly\b/g
+    ];
     let fillerCount = 0;
-    
-    fillerWords.forEach(word => {
-      if (word === "you know") {
-        const matches = cleanText.match(/you know/g);
-        if (matches) fillerCount += matches.length;
-      } else {
-        const regex = new RegExp(`\\b${word}\\b`, 'g');
-        const matches = cleanText.match(regex);
-        if (matches) fillerCount += matches.length;
-      }
+    fillerPatterns.forEach(pattern => {
+      const matches = cleanText.match(pattern);
+      if (matches) fillerCount += matches.length;
     });
 
     const wordCount = (answer_text || "").trim().split(/\s+/).filter(Boolean).length;
-    const duration = parseInt(duration_seconds) || 0;
+    const durationParsed = parseInt(duration_seconds);
+    const duration = (durationParsed && durationParsed > 0) ? durationParsed : Math.max(8, Math.round((wordCount / 130) * 60));
     let wpm = 0;
-    if (duration > 0 && wordCount > 0) {
+    if (wordCount > 0 && duration > 0) {
       wpm = Math.round((wordCount / duration) * 60);
     }
 
@@ -602,34 +797,33 @@ exports.saveAnswer = async (req, res) => {
     let followUpQuestion = null;
     if (userSettings?.conversational_mode !== false && category !== "Follow-up" && score < 8.0) {
       const followUpPrompt = `You are a professional mock job interviewer.
-The candidate was asked the following question:
-"${question_text}"
-
-And they provided this answer:
-"${answer_text}"
-
-Based on their answer (which scored a mediocre ${score}/10), ask exactly one brief, direct conversational follow-up question (maximum 25 words) to probe deeper, clarify their point, or ask them to elaborate on a specific detail they mentioned. Do not say "Based on your answer" or anything similar, just ask the question directly as if speaking to them.`;
+The candidate was asked: "${question_text}"
+They answered: "${answer_text}"
+Score: ${score}/10. Ask one brief, direct follow-up question (max 25 words) to probe deeper or clarify. Ask directly without preamble.`;
 
       if (genAI) {
         try {
-          const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+          const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
           const result = await model.generateContent(followUpPrompt);
           const followUpText = result.response.text().trim();
           if (followUpText) {
-            followUpQuestion = {
-              category: "Follow-up",
-              text: followUpText
-            };
+            followUpQuestion = { category: "Follow-up", text: followUpText };
           }
         } catch (e) {
-          console.error("Gemini follow-up generation error, trying Groq:", e);
+          console.error("Gemini follow-up generation error:", e);
           if (process.env.GROQ_API_KEY || process.env.GROK_API_KEY) {
             try {
               const { callGroqAPI } = require("../utils/groq");
-              const followUpText = await callGroqAPI(followUpPrompt, "You are a professional mock interviewer asking a follow-up question.", false);
+              const followUpText = await callGroqAPI(followUpPrompt, "You are a professional mock interviewer.", false);
               if (followUpText) {
-    if (score < 6) {
-      followUpQuestion = await generateFollowUpQuestion(question_text, answer_text, category);
+                followUpQuestion = { category: "Follow-up", text: followUpText.trim() };
+              }
+            } catch (errGroq) {
+              console.error("Groq follow-up fallback failed:", errGroq);
+            }
+          }
+        }
+      }
     }
 
     res.json({ score, feedback, sub_scores, filler_count: fillerCount, wpm, message: "Answer saved", follow_up: followUpQuestion });
@@ -982,7 +1176,7 @@ exports.analyzeGap = async (req, res) => {
       return res.status(503).json({ message: "AI services are not configured." });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const prompt = `You are an expert technical recruiter and resume reviewer.
 Perform a strict Gap Analysis between the provided Job Description and the Candidate's Resume.
 
